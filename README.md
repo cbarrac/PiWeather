@@ -1,7 +1,7 @@
 # Raspberry Pi SenseHat + pywws
-Read Temperature/Pressure/Humidity from a Raspberry Pi SenseHat
+Read Temperature/Pressure/Humidity from a Raspberry Pi [SenseHat](https://www.raspberrypi.org/products/sense-hat/)
 
-Write the data to a pywws DataStore
+Write the data to a [pywws](https://github.com/jim-easterbrook/pywws) DataStore
 
 Process the data with pywws...
 
