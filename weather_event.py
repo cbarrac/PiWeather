@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from sense_hat import SenseHat
 from datetime import datetime
 from pywws import DataStore
 import sys
@@ -16,6 +15,10 @@ STORAGE = "/opt/weather/"
 FORECAST_FILE = "minforecast.txt"
 # Optional Sensors
 BMP085 = False
+BME280 = True
+PISENSE = False
+# Optional Display
+PISENSE_DISPLAY = False
 # SenseHat Display
 ROTATION = 90
 SCROLL = 0.09
@@ -37,11 +40,15 @@ COLOUR_HOT_NIGHT = [7,0,0]
 COMFORT_LOW = 22
 COMFORT_HIGH = 28
 # Calibration
-CALIB_HUM_IN=0
-CALIB_HUM_OUT=0
-CALIB_PRESSURE=18.5
-CALIB_TEMP_IN=-2.4
-CALIB_TEMP_OUT=-3.2
+CALIB_BMP085_PRESSURE=0
+CALIB_BMP085_TEMP_IN=0
+CALIB_BME280_PRESSURE=0
+CALIB_BME280_TEMP_IN=0
+CALIB_BME280_HUM_IN=0
+CALIB_PISENSE_HUM_IN=0
+CALIB_PISENSE_PRESSURE=18.5
+CALIB_PISENSE_TEMP_IN=-2.4
+CALIB_PISENSE_TEMP_OUT=-3.2
 # Event Periods
 SAMPLE_RATE = 10
 STORE_RATE = 60
@@ -56,9 +63,16 @@ MININT = -(sys.maxsize - 1)
 ########
 # Optional
 ########
+if BME280:
+	from Adafruit_BME280 import *
+	BmeSensor = BME280(mode=BME280_OSAMPLE_8)
 if BMP085:
 	import Adafruit_BMP.BMP085 as BMP085
 	BmpSensor = BMP085.BMP085()
+if PISENSE or PISENSE_DISPLAY:
+	from sense_hat import SenseHat
+	PiSense = SenseHat()
+
 ########
 # Functions
 ########
@@ -97,19 +111,29 @@ def RelToAbsHumidity(relativeHumidity, temperature):
 def Sample():
 	Debug("Sample: read")
 	global readings
-	Smoothing('abs_pressure', (sense.get_pressure() + CALIB_PRESSURE))
-	Smoothing('hum_in', (sense.get_humidity() + CALIB_HUM_IN))
+	if BME280:
+		# !Make sure to read temperature first!
+		# !The library sets OverSampling and waits for valid values _only_ in the read_raw_temperature function!
+		Smoothing('temp_in', (BmeSensor.read_temperature() + CALIB_BME280_TEMP_IN))
+		# Note: read_pressure returns Pa, divide by 100 for hectopascals (hPa)
+		Smoothing('abs_pressure', ((BmeSensor.read_pressure()/100) + CALIB_BME280_PRESSURE))
+		Smoothing('hum_in', (BmeSensor.read_humidity() + CALIB_BME280_HUM_IN))
 	if BMP085:
-		Smoothing('temp_in', (BmpSensor.read_temperature() + CALIB_TEMP_IN))
-		Smoothing('temp_out', (sense.get_temperature_from_humidity() + CALIB_TEMP_OUT))
-		Smoothing('abs_pressure_2', (BmpSensor.read_pressure() + CALIB_PRESSURE))
-	else:
-		Smoothing('temp_in', (sense.get_temperature_from_pressure() + CALIB_TEMP_IN))
-		Smoothing('temp_out', (sense.get_temperature_from_humidity() + CALIB_TEMP_OUT))
+		Smoothing('temp_in', (BmpSensor.read_temperature() + CALIB_BMP085_TEMP_IN))
+		# Note: read_pressure returns Pa, divide by 100 for hectopascals (hPa)
+		Smoothing('abs_pressure', ((BmpSensor.read_pressure()/100) + CALIB_BMP085_PRESSURE))
+	if PISENSE:
+		Smoothing('abs_pressure', (PiSense.get_pressure() + CALIB_PISENSE_PRESSURE))
+		Smoothing('hum_in', (PiSense.get_humidity() + CALIB_PISENSE_HUM_IN))
+		Smoothing('temp_in', (PiSense.get_temperature_from_pressure() + CALIB_PISENSE_TEMP_IN))
+		#Smoothing('temp_out', (PiSense.get_temperature_from_humidity() + CALIB_PISENSE_TEMP_OUT))
 	Debug("Sample: complete")
 
 def Smoothing(channel, value):
 	Debug("Smoothing: Begin")
+	if global_init:
+		Debug("Init Mode: returning with no storage")
+		return
 	average = 0
 	global readings
 	if readings.get(channel,None) is None:
@@ -183,10 +207,28 @@ def Store(ds):
 
 def WriteConsole():
 	Debug("WriteConsole: start")
+	print time.ctime(),
 	try:
-		print "{0} TempIn: {1:0.1f} TempOut: {2:0.1f} Press: {3:0.0f} Hum: {4:0.0f}% Forecast: {5}".format(time.ctime(),readings['temp_in'][0],readings['temp_out'][0],readings['abs_pressure'][0],readings['hum_in'][0],forecast)
+		print "TempIn: {0:0.1f}".format(readings['temp_in'][0]),
 	except:
-		print "Awaiting data"
+		print "TempIn: x",
+	try:
+		print "TempOut: {0:0.1f}".format(readings['temp_out'][0]),
+	except:
+		print "TempOut: x",
+	try:
+		print "HumIn: {0:0.0f}%".format(readings['hum_in'][0]),
+	except:
+		print "HumIn: x",
+	try:
+		print "HumOut: {0:0.0f}%".format(readings['hum_out'][0]),
+	except:
+		print "HumOut: x",
+	try:
+		print "Forecast: %s" % forecast,
+	except:
+		print "Forecast: x",
+	print
 	Debug("WriteConsole: complete")
 
 def WriteSenseHat():
@@ -203,7 +245,7 @@ def WriteSenseHat():
 			msg = "Awaiting data"
 	hour = datetime.now().hour
 	if hour > DAWN and hour < DUSK:
-		sense.low_light = False
+		PiSense.low_light = False
 		Foreground = FG
 		if COLOUR_BG:
 			Background = COLOUR_MID
@@ -214,7 +256,7 @@ def WriteSenseHat():
 		else:
 			Background = BG
 	else:
-		sense.low_light = True
+		PiSense.low_light = True
 		Foreground = FG_NIGHT
 		if COLOUR_BG:
 			Background = COLOUR_MID_NIGHT
@@ -224,8 +266,8 @@ def WriteSenseHat():
 				Background = COLOUR_HOT_NIGHT
 		else:
 			Background = BG_NIGHT
-	sense.show_message(msg, scroll_speed=SCROLL, text_colour=Foreground, back_colour=Background)
-	sense.clear()
+	PiSense.show_message(msg, scroll_speed=SCROLL, text_colour=Foreground, back_colour=Background)
+	PiSense.clear()
 	Debug("WriteSenseHat: complete")
 
 
@@ -238,20 +280,21 @@ def WriteSenseHat():
 data = {}
 forecast = ""
 forecast_toggle = 0
+global_init=True
 readings = {}
 # pywws data
 ds = DataStore.data_store(STORAGE)
 dstatus = DataStore.status(STORAGE)
-sense = SenseHat()
-# Set up display
-sense.clear()
-sense.set_rotation(ROTATION)
+if PISENSE_DISPLAY:
+	# Set up display
+	PiSense.clear()
+	PiSense.set_rotation(ROTATION)
 # Warm up sensors
-sense.get_pressure()
-sense.get_humidity()
-sense.get_temperature()
 print "Waiting for sensors to settle"
-time.sleep(5)
+for i in range(1,6):
+	Sample()
+	time.sleep(1)
+global_init=False
 ForecastRefresh()
 Sample()
 print "Scheduling events..."
@@ -261,7 +304,8 @@ scheduler.add_job(Store, 'interval', seconds=STORE_RATE, id='Store', args=[ds])
 scheduler.add_job(Flush, 'interval', seconds=FLUSH_RATE, id='Flush', args=[ds,dstatus])
 scheduler.add_job(ForecastRefresh, 'interval', seconds=FORECAST_REFRESH_RATE, id='Forecast')
 scheduler.add_job(WriteConsole, 'interval', seconds=CONSOLE_OUTPUT_RATE, id='Console')
-scheduler.add_job(WriteSenseHat, 'interval', seconds=SENSEHAT_OUTPUT_RATE, id='SenseHat')
+if PISENSE_DISPLAY:
+	scheduler.add_job(WriteSenseHat, 'interval', seconds=SENSEHAT_OUTPUT_RATE, id='SenseHat')
 scheduler.start()
 WriteConsole()
 print "Entering event loop"
@@ -277,5 +321,6 @@ except (KeyboardInterrupt, SystemExit):
 	print "Flushing data"
 	ds.flush()
 	dstatus.flush()
-	sense.clear()
+	if PISENSE or PISENSE_DISPLAY:
+		PiSense.clear()
 	print "Goodbye"
