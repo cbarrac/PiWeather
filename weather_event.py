@@ -17,6 +17,7 @@ FORECAST_FILE = "minforecast.txt"
 BMP085 = False
 BME280 = True
 PISENSE = False
+SI1145 = True
 # Optional Display
 PISENSE_DISPLAY = False
 # SenseHat Display
@@ -49,6 +50,14 @@ CALIB_PISENSE_HUM_IN=0
 CALIB_PISENSE_PRESSURE=18.5
 CALIB_PISENSE_TEMP_IN=-2.4
 CALIB_PISENSE_TEMP_OUT=-3.2
+# https://www.adafruit.com/datasheets/Si1145-46-47.pdf
+CALIB_SI1145_VISIBLE=0
+# Sunlight = 0.282; 2500K Incandescent = 0.319; "Cool white" flourescent = 0.146
+CALIB_SI1145_VISIBLE_RESPONSE=0.282
+CALIB_SI1145_IR=0
+# Sunlight = 2.44; 2500K Incandescent=8.46; "Cool white" flourescent=0.71
+CALIB_SI1145_IR_RESPONSE=2.44
+CALIB_SI1145_UV=0
 # Event Periods
 SAMPLE_RATE = 10
 STORE_RATE = 60
@@ -72,6 +81,9 @@ if BMP085:
 if PISENSE or PISENSE_DISPLAY:
 	from sense_hat import SenseHat
 	PiSense = SenseHat()
+if SI1145:
+	import SI1145.SI1145 as SI1145
+	SiSensor = SI1145.SI1145()
 
 ########
 # Functions
@@ -127,6 +139,10 @@ def Sample():
 		Smoothing('hum_in', (PiSense.get_humidity() + CALIB_PISENSE_HUM_IN))
 		Smoothing('temp_in', (PiSense.get_temperature_from_pressure() + CALIB_PISENSE_TEMP_IN))
 		#Smoothing('temp_out', (PiSense.get_temperature_from_humidity() + CALIB_PISENSE_TEMP_OUT))
+	if SI1145:
+		Smoothing('illuminance', ((SiSensor.readVisible() / CALIB_SI1145_VISIBLE_RESPONSE) + CALIB_SI1145_VISIBLE))
+		Smoothing('ir', ((SiSensor.readIR() / CALIB_SI1145_IR_RESPONSE) + CALIB_SI1145_IR))
+		Smoothing('uv', ((SiSensor.readUV()/100) + CALIB_SI1145_UV))
 	Debug("Sample: complete")
 
 def Smoothing(channel, value):
@@ -224,6 +240,18 @@ def WriteConsole():
 		print "HumOut: {0:0.0f}%".format(readings['hum_out'][0]),
 	except:
 		print "HumOut: x",
+	try:
+		print "Illum: {0:0.1f}".format(readings['illuminance'][0]),
+	except:
+		print "Illum: x",
+	try:
+		print "IRLx: {0:0.1f}".format(readings['ir'][0]),
+	except:
+		print "IRLx: x",
+	try:
+		print "UV: {0:0.1f}".format(readings['uv'][0]),
+	except:
+		print "UV: x",
 	try:
 		print "Forecast: %s" % forecast,
 	except:
