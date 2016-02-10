@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from pywws import DataStore
+import math
 import sys
 import time
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -41,6 +42,8 @@ COLOUR_HOT_NIGHT = [7,0,0]
 COMFORT_LOW = 22
 COMFORT_HIGH = 28
 # Calibration
+# - Altitude above sea level, in metres
+CALIB_ALTITUDE=195
 CALIB_BMP085_PRESSURE=0
 CALIB_BMP085_TEMP_IN=0
 CALIB_BME280_PRESSURE=0
@@ -88,6 +91,16 @@ if SI1145:
 ########
 # Functions
 ########
+def AltitudeOffset(Altitude):
+	# p = 101325 (1 - 2.25577 10-5 h)5.25588
+	# Pressure at Altitude
+	p2 = 2.25577 * math.pow(10,-5)
+	p1 = 1 - (p2 * Altitude)
+	p = 101325 * math.pow (p1,5.25588)
+	# Pressure at Sea Level
+	s = 101325 * math.pow (1,5.25588)
+	return (s - p) / 100
+
 def Debug(message):
 	if DEBUG == 1:
 		print message
@@ -128,7 +141,7 @@ def Sample():
 		# !The library sets OverSampling and waits for valid values _only_ in the read_raw_temperature function!
 		Smoothing('temp_in', (BmeSensor.read_temperature() + CALIB_BME280_TEMP_IN))
 		# Note: read_pressure returns Pa, divide by 100 for hectopascals (hPa)
-		Smoothing('abs_pressure', ((BmeSensor.read_pressure()/100) + CALIB_BME280_PRESSURE))
+		Smoothing('abs_pressure', ((BmeSensor.read_pressure()/100) + CALIB_ALTITUDE_PRESSURE_OFFSET + CALIB_BME280_PRESSURE))
 		Smoothing('hum_in', (BmeSensor.read_humidity() + CALIB_BME280_HUM_IN))
 	if BMP085:
 		Smoothing('temp_in', (BmpSensor.read_temperature() + CALIB_BMP085_TEMP_IN))
@@ -241,6 +254,10 @@ def WriteConsole():
 	except:
 		print "HumOut: x",
 	try:
+		print "Press: {0:0.0f}hPa".format(readings['abs_pressure'][0]),
+	except:
+		print "Press: x",
+	try:
 		print "Illum: {0:0.1f}".format(readings['illuminance'][0]),
 	except:
 		print "Illum: x",
@@ -317,6 +334,7 @@ if PISENSE_DISPLAY:
 	# Set up display
 	PiSense.clear()
 	PiSense.set_rotation(ROTATION)
+CALIB_ALTITUDE_PRESSURE_OFFSET = AltitudeOffset(CALIB_ALTITUDE)
 # Warm up sensors
 print "Waiting for sensors to settle"
 for i in range(1,6):
