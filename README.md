@@ -6,10 +6,16 @@ Write the data to a [pywws](https://github.com/jim-easterbrook/pywws) DataStore
 Process the data with pywws...
 
 ## Warning
-I've stopped work on this project, as the readings I'm getting from the SenseHat seem way out. The Temperature inputs are impacted significantly by heat coming from the Raspberry Pi. Double-stacking the headers, using a heat-shield, turning off the display, moving USB wifi away on a cable... none of them work. Humidity is also very bad - 69% when it's raining?! (Government weather station just down the road said > 90%)
+I've stopped work on the PiSense parts of this project, as the readings I'm getting from the SenseHat seem way out. The Temperature inputs are impacted significantly by heat coming from the Raspberry Pi. Double-stacking the headers, using a heat-shield, turning off the display, moving USB wifi away on a cable... none of them work. Humidity is also very bad - 69% when it's raining?! (Government weather station just down the road said > 90%)
+
+## Sensors
+* Raspberry Pi SenseHat - not recommended
+* Adafruit BME280 - Temperature, Pressure, Humidity
+* Adafruit SI1124 - Light, UV
+* Adafruit BMP085 - Temperature, Pressure
 
 ## Reading data
-*Basic*: use `weather.py` - single-threaded, variable timing, not recommended
+*Basic*: use `weather.py` - single-threaded, variable timing, not recommended *DEPRECATED*
 
 *Advanced*: use `weather_event.py` - multi-threaded, better timing, recommended
 
