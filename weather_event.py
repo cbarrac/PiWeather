@@ -20,6 +20,7 @@ BME280 = True
 PISENSE = False
 SI1145 = True
 # Optional Output
+CONSOLE_OUTPUT = True
 PISENSE_DISPLAY = False
 MQTT_PUBLISH = True
 # SenseHat Display
@@ -391,13 +392,16 @@ scheduler.add_job(Sample, 'interval', seconds=SAMPLE_RATE, id='Sample')
 scheduler.add_job(Store, 'interval', seconds=STORE_RATE, id='Store', args=[ds])
 scheduler.add_job(Flush, 'interval', seconds=FLUSH_RATE, id='Flush', args=[ds,dstatus])
 scheduler.add_job(ForecastRefresh, 'interval', seconds=FORECAST_REFRESH_RATE, id='Forecast')
-scheduler.add_job(WriteConsole, 'interval', seconds=CONSOLE_OUTPUT_RATE, id='Console')
+if CONSOLE_OUTPUT:
+	scheduler.add_job(WriteConsole, 'interval', seconds=CONSOLE_OUTPUT_RATE, id='Console')
 if PISENSE_DISPLAY:
 	scheduler.add_job(WriteSenseHat, 'interval', seconds=SENSEHAT_OUTPUT_RATE, id='SenseHat')
 if MQTT_PUBLISH:
 	scheduler.add_job(MqSendMultiple,'interval',seconds=MQTT_OUTPUT_RATE,id='MQTT')
+	
 scheduler.start()
-WriteConsole()
+if CONSOLE_OUTPUT:
+	WriteConsole()
 if MQTT_PUBLISH:
 	MqSendMultiple()
 print "Entering event loop"
