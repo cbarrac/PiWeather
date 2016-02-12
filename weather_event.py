@@ -19,8 +19,9 @@ BMP085 = False
 BME280 = True
 PISENSE = False
 SI1145 = True
-# Optional Display
+# Optional Output
 PISENSE_DISPLAY = False
+MQTT_PUBLISH = True
 # SenseHat Display
 ROTATION = 90
 SCROLL = 0.09
@@ -61,16 +62,23 @@ CALIB_SI1145_IR=0
 # Sunlight = 2.44; 2500K Incandescent=8.46; "Cool white" flourescent=0.71
 CALIB_SI1145_IR_RESPONSE=2.44
 CALIB_SI1145_UV=0
-# Event Periods
-SAMPLE_RATE = 10
-STORE_RATE = 60
+# Event Periods / Timers
+CONSOLE_OUTPUT_RATE = 60
 FLUSH_RATE = 180
 FORECAST_REFRESH_RATE = 300
-CONSOLE_OUTPUT_RATE = 60
+MQTT_OUTPUT_RATE = 60
+SAMPLE_RATE = 10
 SENSEHAT_OUTPUT_RATE = 30
-SMOOTHING = 6
+STORE_RATE = 60
+# Smoothing over ... values
+SMOOTHING = 30
 # Magic Values (used for 'empty')
 MININT = -(sys.maxsize - 1)
+# MQ Connectivity
+MQTT_SERVER = "hab1.internal"
+MQTT_PORT = 1883
+MQTT_CLIENTID = "piweather"
+MQTT_PREFIX = "/sensors/"
 
 ########
 # Optional
@@ -81,6 +89,8 @@ if BME280:
 if BMP085:
 	import Adafruit_BMP.BMP085 as BMP085
 	BmpSensor = BMP085.BMP085()
+if MQTT_PUBLISH:
+	import paho.mqtt.publish as publish
 if PISENSE or PISENSE_DISPLAY:
 	from sense_hat import SenseHat
 	PiSense = SenseHat()
@@ -113,7 +123,7 @@ def Flush(ds,dstatus):
 	dstatus.set('fixed', 'fixed block', str(readings))
 	Debug("Flush: dstatus")
 	dstatus.flush()
-	Debug("Flush: complete")
+	Debug("Flush: Complete")
 
 def ForecastRefresh():
 	Debug("ForecastRefresh: start")
@@ -127,7 +137,39 @@ def ForecastRefresh():
 	except:
 		forecast = ""
 	Debug("ForecastRefresh: \"%s\"" % forecast)
-	Debug("ForecastRefresh: complete")
+	Debug("ForecastRefresh: Complete")
+
+def MqClose():
+    Debug("MqClose: Stopping loop")
+    mqtt_client.loop_stop()
+    Debug("MqClose: Disconnecting")
+    mqtt_client.disconnect()
+    Debug("MqClose: Complete")
+
+def MqInit():
+    global mqtt_client
+    mqtt_client.connect(MQTT_SERVER, MQTT_PORT, 60)
+    Debug("MqInit: Starting loop")
+    mqtt_client.loop_start()
+
+def MqSendMultiple():
+	Debug("MqSendMultiple: Build Message")
+	msgs = []
+	for reading in readings:
+		variable = reading
+		mq_path = MQTT_PREFIX + reading
+		value = readings[reading][0]
+		msg = {'topic':mq_path,'payload':value}
+		Debug("MqSendMultiple: Payload Element {0}".format(msg))
+		msgs.append(msg)
+	Debug("MqSendMultiple: Sending multiple")
+	publish.multiple(msgs,hostname=MQTT_SERVER,port=MQTT_PORT,client_id=MQTT_CLIENTID)
+	Debug("MqSendMultiple: Complete")
+
+def MqSendSingle(variable,value):
+    mq_path = MQTT_PREFIX + variable
+    Debug("MqSendSingle: Sending {0} = {1:0.1f}".format(mq_path,value))
+    mqtt_client.publish(mq_path, value)
 
 def RelToAbsHumidity(relativeHumidity, temperature):
 	absoluteHumidity = 6.112 * math.exp((17.67 * temperature)/(temperature+243.5)) * relativeHumidity * 2.1674 / (273.15+temperature)
@@ -156,7 +198,7 @@ def Sample():
 		Smoothing('illuminance', ((SiSensor.readVisible() / CALIB_SI1145_VISIBLE_RESPONSE) + CALIB_SI1145_VISIBLE))
 		Smoothing('ir', ((SiSensor.readIR() / CALIB_SI1145_IR_RESPONSE) + CALIB_SI1145_IR))
 		Smoothing('uv', ((SiSensor.readUV()/100) + CALIB_SI1145_UV))
-	Debug("Sample: complete")
+	Debug("Sample: Complete")
 
 def Smoothing(channel, value):
 	Debug("Smoothing: Begin")
@@ -178,7 +220,7 @@ def Smoothing(channel, value):
 	average = average / SMOOTHING
 	readings[channel][0] = average
 	Debug("Smoothing: Readings[%s]: %s" % (channel, readings[channel]))
-	Debug("Smoothing: complete")
+	Debug("Smoothing: Complete")
 
 def Store(ds):
 	Debug("Store: Write to data")
@@ -232,7 +274,7 @@ def Store(ds):
 		data['wind_gust'] = None
 	Debug("Store: Write to ds")
 	ds[datetime.utcnow()] = data
-	Debug("Store: complete")
+	Debug("Store: Complete")
 
 def WriteConsole():
 	Debug("WriteConsole: start")
@@ -274,7 +316,7 @@ def WriteConsole():
 	except:
 		print "Forecast: x",
 	print
-	Debug("WriteConsole: complete")
+	Debug("WriteConsole: Complete")
 
 def WriteSenseHat():
 	Debug("WriteSenseHat: start")
@@ -313,7 +355,7 @@ def WriteSenseHat():
 			Background = BG_NIGHT
 	PiSense.show_message(msg, scroll_speed=SCROLL, text_colour=Foreground, back_colour=Background)
 	PiSense.clear()
-	Debug("WriteSenseHat: complete")
+	Debug("WriteSenseHat: Complete")
 
 
 
@@ -352,8 +394,12 @@ scheduler.add_job(ForecastRefresh, 'interval', seconds=FORECAST_REFRESH_RATE, id
 scheduler.add_job(WriteConsole, 'interval', seconds=CONSOLE_OUTPUT_RATE, id='Console')
 if PISENSE_DISPLAY:
 	scheduler.add_job(WriteSenseHat, 'interval', seconds=SENSEHAT_OUTPUT_RATE, id='SenseHat')
+if MQTT_PUBLISH:
+	scheduler.add_job(MqSendMultiple,'interval',seconds=MQTT_OUTPUT_RATE,id='MQTT')
 scheduler.start()
 WriteConsole()
+if MQTT_PUBLISH:
+	MqSendMultiple()
 print "Entering event loop"
 
 try:
