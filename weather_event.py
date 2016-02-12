@@ -120,10 +120,16 @@ def Flush(ds,dstatus):
 	Debug("Flush: ds")
 	ds.flush()
 	Debug("Flush: Write dstatus")
-	dstatus.set('last update', 'logged', datetime.utcnow().isoformat(' '))
-	dstatus.set('fixed', 'fixed block', str(readings))
+	try:
+		dstatus.set('last update', 'logged', datetime.utcnow().isoformat(' '))
+		dstatus.set('fixed', 'fixed block', str(readings))
+	except:
+		Debug("Flush: Error setting status")
 	Debug("Flush: dstatus")
-	dstatus.flush()
+	try:
+		dstatus.flush()
+	except:
+		Debug("Flush: error in flush")
 	Debug("Flush: Complete")
 
 def ForecastRefresh():
@@ -164,7 +170,10 @@ def MqSendMultiple():
 		Debug("MqSendMultiple: Payload Element {0}".format(msg))
 		msgs.append(msg)
 	Debug("MqSendMultiple: Sending multiple")
-	publish.multiple(msgs,hostname=MQTT_SERVER,port=MQTT_PORT,client_id=MQTT_CLIENTID)
+	try:
+		publish.multiple(msgs,hostname=MQTT_SERVER,port=MQTT_PORT,client_id=MQTT_CLIENTID)
+	except:
+		Debug("Error sending MQTT message")
 	Debug("MqSendMultiple: Complete")
 
 def MqSendSingle(variable,value):
@@ -182,23 +191,35 @@ def Sample():
 	if BME280:
 		# !Make sure to read temperature first!
 		# !The library sets OverSampling and waits for valid values _only_ in the read_raw_temperature function!
-		Smoothing('temp_in', (BmeSensor.read_temperature() + CALIB_BME280_TEMP_IN))
-		# Note: read_pressure returns Pa, divide by 100 for hectopascals (hPa)
-		Smoothing('abs_pressure', ((BmeSensor.read_pressure()/100) + CALIB_ALTITUDE_PRESSURE_OFFSET + CALIB_BME280_PRESSURE))
-		Smoothing('hum_in', (BmeSensor.read_humidity() + CALIB_BME280_HUM_IN))
+		try:
+			Smoothing('temp_in', (BmeSensor.read_temperature() + CALIB_BME280_TEMP_IN))
+			# Note: read_pressure returns Pa, divide by 100 for hectopascals (hPa)
+			Smoothing('abs_pressure', ((BmeSensor.read_pressure()/100) + CALIB_ALTITUDE_PRESSURE_OFFSET + CALIB_BME280_PRESSURE))
+			Smoothing('hum_in', (BmeSensor.read_humidity() + CALIB_BME280_HUM_IN))
+		except:
+			Debug("Error reading BME280")
 	if BMP085:
-		Smoothing('temp_in', (BmpSensor.read_temperature() + CALIB_BMP085_TEMP_IN))
-		# Note: read_pressure returns Pa, divide by 100 for hectopascals (hPa)
-		Smoothing('abs_pressure', ((BmpSensor.read_pressure()/100) + CALIB_BMP085_PRESSURE))
+		try:
+			Smoothing('temp_in', (BmpSensor.read_temperature() + CALIB_BMP085_TEMP_IN))
+			# Note: read_pressure returns Pa, divide by 100 for hectopascals (hPa)
+			Smoothing('abs_pressure', ((BmpSensor.read_pressure()/100) + CALIB_BMP085_PRESSURE))
+		except:
+			Debug("Error reading BMP085")
 	if PISENSE:
-		Smoothing('abs_pressure', (PiSense.get_pressure() + CALIB_PISENSE_PRESSURE))
-		Smoothing('hum_in', (PiSense.get_humidity() + CALIB_PISENSE_HUM_IN))
-		Smoothing('temp_in', (PiSense.get_temperature_from_pressure() + CALIB_PISENSE_TEMP_IN))
-		#Smoothing('temp_out', (PiSense.get_temperature_from_humidity() + CALIB_PISENSE_TEMP_OUT))
+		try:
+			Smoothing('abs_pressure', (PiSense.get_pressure() + CALIB_PISENSE_PRESSURE))
+			Smoothing('hum_in', (PiSense.get_humidity() + CALIB_PISENSE_HUM_IN))
+			Smoothing('temp_in', (PiSense.get_temperature_from_pressure() + CALIB_PISENSE_TEMP_IN))
+			#Smoothing('temp_out', (PiSense.get_temperature_from_humidity() + CALIB_PISENSE_TEMP_OUT))
+		except:
+			Debug("Error reading PISENSE")
 	if SI1145:
-		Smoothing('illuminance', ((SiSensor.readVisible() / CALIB_SI1145_VISIBLE_RESPONSE) + CALIB_SI1145_VISIBLE))
-		Smoothing('ir', ((SiSensor.readIR() / CALIB_SI1145_IR_RESPONSE) + CALIB_SI1145_IR))
-		Smoothing('uv', ((SiSensor.readUV()/100) + CALIB_SI1145_UV))
+		try:
+			Smoothing('illuminance', ((SiSensor.readVisible() / CALIB_SI1145_VISIBLE_RESPONSE) + CALIB_SI1145_VISIBLE))
+			Smoothing('ir', ((SiSensor.readIR() / CALIB_SI1145_IR_RESPONSE) + CALIB_SI1145_IR))
+			Smoothing('uv', ((SiSensor.readUV()/100) + CALIB_SI1145_UV))
+		except:
+			Debug("Error reading SI1145")
 	Debug("Sample: Complete")
 
 def Smoothing(channel, value):
@@ -274,7 +295,10 @@ def Store(ds):
 	except:
 		data['wind_gust'] = None
 	Debug("Store: Write to ds")
-	ds[datetime.utcnow()] = data
+	try:
+		ds[datetime.utcnow()] = data
+	except:
+		Debug("Store: Error pushing data")
 	Debug("Store: Complete")
 
 def WriteConsole():
@@ -398,7 +422,7 @@ if PISENSE_DISPLAY:
 	scheduler.add_job(WriteSenseHat, 'interval', seconds=SENSEHAT_OUTPUT_RATE, id='SenseHat')
 if MQTT_PUBLISH:
 	scheduler.add_job(MqSendMultiple,'interval',seconds=MQTT_OUTPUT_RATE,id='MQTT')
-	
+
 scheduler.start()
 if CONSOLE_OUTPUT:
 	WriteConsole()
