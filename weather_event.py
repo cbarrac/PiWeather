@@ -56,12 +56,16 @@ CALIB_PISENSE_PRESSURE=18.5
 CALIB_PISENSE_TEMP_IN=-2.4
 CALIB_PISENSE_TEMP_OUT=-3.2
 # https://www.adafruit.com/datasheets/Si1145-46-47.pdf
-CALIB_SI1145_VISIBLE=0
+# Apparently all come with +256 offset
+CALIB_SI1145_VISIBLE=-256
 # Sunlight = 0.282; 2500K Incandescent = 0.319; "Cool white" flourescent = 0.146
-CALIB_SI1145_VISIBLE_RESPONSE=0.282
-CALIB_SI1145_IR=0
+# At gain 0, in High Signal Range mode "High Signal Range (Gain divided by 14.5)"
+CALIB_SI1145_VISIBLE_RESPONSE=(0.282 / 14.5)
+# Apparently all come with +256 offset
+CALIB_SI1145_IR=-256
 # Sunlight = 2.44; 2500K Incandescent=8.46; "Cool white" flourescent=0.71
-CALIB_SI1145_IR_RESPONSE=2.44
+# At gain 0, in High Signal Range mode "High Signal Range (Gain divided by 14.5)"
+CALIB_SI1145_IR_RESPONSE=(2.44 / 14.5)
 CALIB_SI1145_UV=0
 # Event Periods / Timers
 CONSOLE_OUTPUT_RATE = 60
@@ -215,9 +219,9 @@ def Sample():
 			Debug("Error reading PISENSE")
 	if SI1145:
 		try:
-			Smoothing('illuminance', ((SiSensor.readVisible() / CALIB_SI1145_VISIBLE_RESPONSE) + CALIB_SI1145_VISIBLE))
-			Smoothing('ir', ((SiSensor.readIR() / CALIB_SI1145_IR_RESPONSE) + CALIB_SI1145_IR))
-			Smoothing('uv', ((SiSensor.readUV()/100) + CALIB_SI1145_UV))
+			Smoothing('illuminance', ((SiSensor.readVisible() + CALIB_SI1145_VISIBLE) / CALIB_SI1145_VISIBLE_RESPONSE))
+			Smoothing('ir', ((SiSensor.readIR() + CALIB_SI1145_IR) / CALIB_SI1145_IR_RESPONSE))
+			Smoothing('uv', ((SiSensor.readUV()/100.0) + CALIB_SI1145_UV))
 		except:
 			Debug("Error reading SI1145")
 	Debug("Sample: Complete")
