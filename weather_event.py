@@ -3,6 +3,7 @@
 from datetime import datetime
 from pywws import DataStore
 import math
+import numpy
 import sys
 import time
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -121,6 +122,17 @@ def Debug(message):
 	if DEBUG == 1:
 		print message
 
+def DewPoint(RH,TempC):
+	Debug("DewPoint: Calculating for RH:{0:.1f} and Temp: {1:.1f}".format(RH,TempC))
+	# Paroscientific constants (0 <> 60 degc, 0 <> 100% RH)
+	a = 6.105
+	b = 17.271
+	c = 237.7
+	gamma = numpy.log(RH/100.0) + (b * TempC / (c + TempC))
+	dp = (c * gamma) / (b - gamma)
+	Debug("DewPoint is {0:.1f}".format(dp))
+	return dp
+
 def Flush(ds,dstatus):
 	Debug("Flush: ds")
 	ds.flush()
@@ -224,6 +236,11 @@ def Sample():
 			Smoothing('uv', ((SiSensor.readUV()/100.0) + CALIB_SI1145_UV))
 		except:
 			Debug("Error reading SI1145")
+	if BME280 or BMP085 or PISENSE:
+		try:
+			Smoothing('dew_point',DewPoint(readings['hum_in'][0],readings['temp_in'][0]))
+		except:
+			Debug("Error calculating Dew Point")
 	Debug("Sample: Complete")
 
 def Smoothing(channel, value):
