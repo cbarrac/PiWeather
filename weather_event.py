@@ -69,6 +69,8 @@ CALIB_SI1145_IR=-256
 # At gain 0, in High Signal Range mode "High Signal Range (Gain divided by 14.5)"
 CALIB_SI1145_IR_RESPONSE=(2.44 / 14.5)
 CALIB_SI1145_UV=0
+# Estimated transmission of current glass covering
+CALIB_SI1145_UV_RESPONSE=0.55
 # Event Periods / Timers
 CONSOLE_OUTPUT_RATE = 60
 FLUSH_RATE = 180
@@ -233,12 +235,12 @@ def Sample():
 		try:
 			Smoothing('illuminance', ((SiSensor.readVisible() + CALIB_SI1145_VISIBLE) / CALIB_SI1145_VISIBLE_RESPONSE))
 			Smoothing('ir', ((SiSensor.readIR() + CALIB_SI1145_IR) / CALIB_SI1145_IR_RESPONSE))
-			Smoothing('uv', ((SiSensor.readUV()/100.0) + CALIB_SI1145_UV))
+			Smoothing('uv', (((SiSensor.readUV()/100.0) + CALIB_SI1145_UV) / CALIB_SI1145_UV_RESPONSE))
 		except:
 			Debug("Error reading SI1145")
 	if BME280 or BMP085 or PISENSE:
 		try:
-			Smoothing('dew_point',DewPoint(readings['hum_in'][0],readings['temp_in'][0]))
+			Smoothing('dew_point_in',DewPoint(readings['hum_in'][0],readings['temp_in'][0]))
 		except:
 			Debug("Error calculating Dew Point")
 	Debug("Sample: Complete")
