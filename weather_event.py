@@ -11,6 +11,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 # CONFIG
 ########
 DEBUG = 0
+BRUTAL_VIEW = True
 # Output directory for pywws
 STORAGE = "/opt/weather/"
 FORECAST_FILE = "minforecast.txt"
@@ -167,7 +168,6 @@ def MqSendMultiple():
 	Debug("MqSendMultiple: Build Message")
 	msgs = []
 	for reading in readings:
-		variable = reading
 		mq_path = MQTT_PREFIX + reading
 		value = readings[reading][0]
 		msg = {'topic':mq_path,'payload':value}
@@ -308,38 +308,43 @@ def Store(ds):
 def WriteConsole():
 	Debug("WriteConsole: start")
 	print time.ctime(),
-	try:
-		print "TempIn: {0:0.1f}".format(readings['temp_in'][0]),
-	except:
-		print "TempIn: x",
-	try:
-		print "TempOut: {0:0.1f}".format(readings['temp_out'][0]),
-	except:
-		print "TempOut: x",
-	try:
-		print "HumIn: {0:0.0f}%".format(readings['hum_in'][0]),
-	except:
-		print "HumIn: x",
-	try:
-		print "HumOut: {0:0.0f}%".format(readings['hum_out'][0]),
-	except:
-		print "HumOut: x",
-	try:
-		print "Press: {0:0.0f}hPa".format(readings['abs_pressure'][0]),
-	except:
-		print "Press: x",
-	try:
-		print "Illum: {0:0.1f}".format(readings['illuminance'][0]),
-	except:
-		print "Illum: x",
-	try:
-		print "IRLx: {0:0.1f}".format(readings['ir'][0]),
-	except:
-		print "IRLx: x",
-	try:
-		print "UV: {0:0.1f}".format(readings['uv'][0]),
-	except:
-		print "UV: x",
+	if BRUTAL_VIEW:
+		for reading in readings:
+			value = readings[reading][0]
+			print "{0}: {1:.1f}".format(reading,value),
+	else:
+		try:
+			print "TempIn: {0:0.1f}".format(readings['temp_in'][0]),
+		except:
+			print "TempIn: x",
+		try:
+			print "TempOut: {0:0.1f}".format(readings['temp_out'][0]),
+		except:
+			print "TempOut: x",
+		try:
+			print "HumIn: {0:0.0f}%".format(readings['hum_in'][0]),
+		except:
+			print "HumIn: x",
+		try:
+			print "HumOut: {0:0.0f}%".format(readings['hum_out'][0]),
+		except:
+			print "HumOut: x",
+		try:
+			print "Press: {0:0.0f}hPa".format(readings['abs_pressure'][0]),
+		except:
+			print "Press: x",
+		try:
+			print "Illum: {0:0.1f}".format(readings['illuminance'][0]),
+		except:
+			print "Illum: x",
+		try:
+			print "IRLx: {0:0.1f}".format(readings['ir'][0]),
+		except:
+			print "IRLx: x",
+		try:
+			print "UV: {0:0.1f}".format(readings['uv'][0]),
+		except:
+			print "UV: x",
 	try:
 		print "Forecast: %s" % forecast,
 	except:
