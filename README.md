@@ -14,6 +14,10 @@ I've stopped work on the PiSense parts of this project, as the readings I'm gett
 * Adafruit SI1124 - Light, UV
 * Adafruit BMP085 - Temperature, Pressure
 
+## Displays
+* Adafruit 16x2 RGB LCD Display (on an Adafruit Pi Plate - providing an i2c interface)
+* Raspberry Pi SenseHat
+
 ## Reading data
 *Basic*: use `weather.py` - single-threaded, variable timing, not recommended *DEPRECATED*
 

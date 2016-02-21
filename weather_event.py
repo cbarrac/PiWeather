@@ -22,6 +22,7 @@ BME280 = True
 PISENSE = False
 SI1145 = True
 # Optional Output
+ADA_LCD = True
 CONSOLE_OUTPUT = True
 PISENSE_DISPLAY = False
 MQTT_PUBLISH = True
@@ -72,6 +73,7 @@ CALIB_SI1145_UV=0
 # Estimated transmission of current glass covering
 CALIB_SI1145_UV_RESPONSE=0.55
 # Event Periods / Timers
+ADALCD_OUTPUT_RATE = 30
 CONSOLE_OUTPUT_RATE = 60
 FLUSH_RATE = 180
 FORECAST_REFRESH_RATE = 300
@@ -92,6 +94,9 @@ MQTT_PREFIX = "/sensors/"
 ########
 # Optional
 ########
+if ADA_LCD:
+	import Adafruit_CharLCD
+	AdaLcd = Adafruit_CharLCD.Adafruit_CharLCDPlate()
 if BME280:
 	from Adafruit_BME280 import *
 	BmeSensor = BME280(mode=BME280_OSAMPLE_8)
@@ -324,6 +329,40 @@ def Store(ds):
 		Debug("Store: Error pushing data")
 	Debug("Store: Complete")
 
+def WriteAdaLcd():
+	try:
+		msg = "{0:0.1f}C {1:0.0f}% {2:0.1f}UV\n{3}".format(readings['temp_in'][0],readings['hum_in'][0],readings['uv'][0],forecast)
+	except:
+		Debug("WriteAdaLcd: Error creating message")
+		msg = "Data Error"
+	try:
+		AdaLcd.clear()
+	except:
+		Debug("WriteAdaLcd: Error clearing LCD")
+	try:
+		uv = readings['uv'][0]
+		if uv < 3.0:
+			# Low
+			AdaLcd.set_color(0.0,1.0,0.0)	#rgb(0,255,0)
+		elif uv < 6.0:
+			# Moderate
+			AdaLcd.set_color(1.0,1.0,0.0)	#rgb(255,255,0)
+		elif uv < 6.0:
+			# High
+			AdaLcd.set_color(1.0,0.5,0.0)	#rgb(255,128,0)
+		elif uv < 11.0:
+			# Very High
+			AdaLcd.set_color(1.0,0.0,0.0)	#rgb(255,0,0)
+		else:
+			# Extreme
+			AdaLcd.set_color(1.0,0.0,1.0)	#rgb(255,0,255)
+	except:
+		Debug("WriteAdaLcd: Error setting backlight")
+	try:
+		AdaLcd.message(msg)
+	except:
+		Debug("WriteAdaLcd: Error writing message")
+
 def WriteConsole():
 	Debug("WriteConsole: start")
 	print time.ctime(),
@@ -425,6 +464,8 @@ readings = {}
 # pywws data
 ds = DataStore.data_store(STORAGE)
 dstatus = DataStore.status(STORAGE)
+if ADA_LCD:
+	AdaLcd.clear()
 if PISENSE_DISPLAY:
 	# Set up display
 	PiSense.clear()
@@ -444,14 +485,18 @@ scheduler.add_job(Sample, 'interval', seconds=SAMPLE_RATE, id='Sample')
 scheduler.add_job(Store, 'interval', seconds=STORE_RATE, id='Store', args=[ds])
 scheduler.add_job(Flush, 'interval', seconds=FLUSH_RATE, id='Flush', args=[ds,dstatus])
 scheduler.add_job(ForecastRefresh, 'interval', seconds=FORECAST_REFRESH_RATE, id='Forecast')
+if ADA_LCD:
+	scheduler.add_job(WriteAdaLcd, 'interval', seconds=ADALCD_OUTPUT_RATE, id='AdaLcd')
 if CONSOLE_OUTPUT:
 	scheduler.add_job(WriteConsole, 'interval', seconds=CONSOLE_OUTPUT_RATE, id='Console')
-if PISENSE_DISPLAY:
-	scheduler.add_job(WriteSenseHat, 'interval', seconds=SENSEHAT_OUTPUT_RATE, id='SenseHat')
 if MQTT_PUBLISH:
 	scheduler.add_job(MqSendMultiple,'interval',seconds=MQTT_OUTPUT_RATE,id='MQTT')
+if PISENSE_DISPLAY:
+	scheduler.add_job(WriteSenseHat, 'interval', seconds=SENSEHAT_OUTPUT_RATE, id='SenseHat')
 
 scheduler.start()
+if ADA_LCD:
+	WriteAdaLcd()
 if CONSOLE_OUTPUT:
 	WriteConsole()
 if MQTT_PUBLISH:
@@ -469,6 +514,8 @@ except (KeyboardInterrupt, SystemExit):
 	print "Flushing data"
 	ds.flush()
 	dstatus.flush()
+	if ADA_LCD:
+		AdaLcd.clear()
 	if PISENSE or PISENSE_DISPLAY:
 		PiSense.clear()
 	print "Goodbye"
