@@ -26,6 +26,8 @@ ADA_LCD = True
 CONSOLE_OUTPUT = True
 PISENSE_DISPLAY = False
 MQTT_PUBLISH = True
+# Adafruit LCD
+ADA_LCD_WIDTH = 16
 # SenseHat Display
 ROTATION = 90
 SCROLL = 0.09
@@ -73,7 +75,7 @@ CALIB_SI1145_UV=0
 # Estimated transmission of current glass covering
 CALIB_SI1145_UV_RESPONSE=0.55
 # Event Periods / Timers
-ADALCD_OUTPUT_RATE = 30
+ADALCD_OUTPUT_RATE = 15
 CONSOLE_OUTPUT_RATE = 60
 FLUSH_RATE = 180
 FORECAST_REFRESH_RATE = 300
@@ -169,6 +171,24 @@ def ForecastRefresh():
 		forecast = ""
 	Debug("ForecastRefresh: \"%s\"" % forecast)
 	Debug("ForecastRefresh: Complete")
+
+def FormatDisplay(input,max_length):
+    input_len = len(input)
+    if (input_len < max_length):
+        return input
+    else:
+        words = input.split()
+        display = ""
+        length = 0
+        for word in words:
+            len_word = len(word)
+            if (length + len_word) < max_length:
+                display = display + word + " "
+                length = length + len_word + 1
+            else:
+                display = display + "\n" + word + " "
+                length = len_word + 1
+        return display
 
 def MqClose():
     Debug("MqClose: Stopping loop")
@@ -330,8 +350,17 @@ def Store(ds):
 	Debug("Store: Complete")
 
 def WriteAdaLcd():
+	global AdaScreenNumber
 	try:
-		msg = "{0:0.1f}C {1:0.0f}% {2:0.1f}UV\n{3}".format(readings['temp_in'][0],readings['hum_in'][0],readings['uv'][0],forecast)
+		if AdaScreenNumber == 0:
+			msg = "{0:0.1f}C {1:0.0f}% UV:{2:0.1f}\n{3:0.1f}hPa".format(readings['temp_in'][0],readings['hum_in'][0],readings['uv'][0],readings['abs_pressure'][0])
+			AdaScreenNumber = 1
+		elif AdaScreenNumber == 1:
+			msg = FormatDisplay(forecast, ADA_LCD_WIDTH)
+			AdaScreenNumber = 0
+		else:
+			msg = "No message"
+			AdaScreenNumber = 0
 	except:
 		Debug("WriteAdaLcd: Error creating message")
 		msg = "Data Error"
@@ -456,6 +485,7 @@ def WriteSenseHat():
 # Main
 ########
 # Global Variables
+AdaScreenNumber = 0
 data = {}
 forecast = ""
 forecast_toggle = 0
