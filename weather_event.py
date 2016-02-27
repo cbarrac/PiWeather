@@ -9,35 +9,6 @@ import sys
 import time
 
 ########
-# CONFIG
-########
-config = configparser.ConfigParser()
-config.read('PiWeather.ini')
-
-########
-# Optional
-########
-if config.getboolean('Output','ADA_LCD'):
-	import Adafruit_CharLCD
-	AdaLcd = Adafruit_CharLCD.Adafruit_CharLCDPlate()
-if config.getboolean('Sensors','BME280'):
-	from Adafruit_BME280 import *
-	BmeSensor = BME280(mode=BME280_OSAMPLE_8)
-if config.getboolean('Sensors','BMP085'):
-	import Adafruit_BMP.BMP085 as BMP085
-	BmpSensor = BMP085.BMP085()
-if config.getboolean('Output','MQTT_PUBLISH'):
-	import paho.mqtt.publish as publish
-if config.getboolean('Output','PYWWS_PUBLISH'):
-	from pywws import DataStore
-if config.getboolean('Sensors','SENSEHAT') or config.getboolean('Output','SENSEHAT_DISPLAY'):
-	from sense_hat import SenseHat
-	PiSenseHat = SenseHat()
-if config.getboolean('Sensors','SI1145'):
-	import SI1145.SI1145 as SI1145
-	SiSensor = SI1145.SI1145()
-
-########
 # Functions
 ########
 def AltitudeOffset(Altitude):
@@ -144,6 +115,10 @@ def MqSendSingle(variable,value):
     mq_path = config.get('MQTT','PREFIX') + variable
     Debug("MqSendSingle: Sending {0} = {1:0.1f}".format(mq_path,value))
     mqtt_client.publish(mq_path, value)
+
+def ReadConfig():
+	global config
+	config.read(CONFIG_FILE)
 
 def RelToAbsHumidity(relativeHumidity, temperature):
 	absoluteHumidity = 6.112 * math.exp((17.67 * temperature)/(temperature+243.5)) * relativeHumidity * 2.1674 / (273.15+temperature)
@@ -400,6 +375,36 @@ def WriteSenseHat():
 
 
 ########
+# CONFIG
+########
+config = configparser.ConfigParser()
+CONFIG_FILE = 'PiWeather.ini'
+ReadConfig()
+
+########
+# Optional
+########
+if config.getboolean('Output','ADA_LCD'):
+	import Adafruit_CharLCD
+	AdaLcd = Adafruit_CharLCD.Adafruit_CharLCDPlate()
+if config.getboolean('Sensors','BME280'):
+	from Adafruit_BME280 import *
+	BmeSensor = BME280(mode=BME280_OSAMPLE_8)
+if config.getboolean('Sensors','BMP085'):
+	import Adafruit_BMP.BMP085 as BMP085
+	BmpSensor = BMP085.BMP085()
+if config.getboolean('Output','MQTT_PUBLISH'):
+	import paho.mqtt.publish as publish
+if config.getboolean('Output','PYWWS_PUBLISH'):
+	from pywws import DataStore
+if config.getboolean('Sensors','SENSEHAT') or config.getboolean('Output','SENSEHAT_DISPLAY'):
+	from sense_hat import SenseHat
+	PiSenseHat = SenseHat()
+if config.getboolean('Sensors','SI1145'):
+	import SI1145.SI1145 as SI1145
+	SiSensor = SI1145.SI1145()
+
+########
 # Main
 ########
 # Global Variables
@@ -434,6 +439,7 @@ ForecastRefresh()
 Sample()
 print "Scheduling events..."
 scheduler = BackgroundScheduler()
+scheduler.add_job(ReadConfig, 'interval', seconds=config.getint('Rates', 'CONFIG_REFRESH_RATE'), id='ReadConfig')
 scheduler.add_job(Sample, 'interval', seconds=config.getint('Rates','SAMPLE_RATE'), id='Sample')
 if config.getboolean('Output','PYWWS_PUBLISH'):
 	scheduler.add_job(Store, 'interval', seconds=config.getint('Rates','STORE_RATE'), id='Store', args=[ds])
