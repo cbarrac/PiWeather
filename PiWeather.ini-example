@@ -1,0 +1,91 @@
+[Adafruit_LCD]
+LCD_WIDTH = 16
+
+[Calibration]
+ALTITUDE=195
+BMP085_PRESSURE=0
+BMP085_TEMP_IN=0
+BME280_PRESSURE=0
+BME280_TEMP_IN=0
+BME280_HUM_IN=0
+SENSEHAT_HUM_IN=0
+SENSEHAT_PRESSURE=0
+SENSEHAT_TEMP_IN=-2.4
+SENSEHAT_TEMP_OUT=-3.2
+# https://www.adafruit.com/datasheets/Si1145-46-47.pdf
+# Apparently all come with +256 offset
+SI1145_VISIBLE=-256
+# Sunlight = 0.282; 2500K Incandescent = 0.319; "Cool white" flourescent = 0.146
+# At gain 0, in High Signal Range mode "High Signal Range (Gain divided by 14.5)"
+SI1145_VISIBLE_RESPONSE=(0.282 / 14.5)
+# Apparently all come with +256 offset
+SI1145_IR=-236
+# Sunlight = 2.44; 2500K Incandescent=8.46; "Cool white" flourescent=0.71
+# At gain 0, in High Signal Range mode "High Signal Range (Gain divided by 14.5)"
+SI1145_IR_RESPONSE=(2.44 / 14.5)
+SI1145_UV=0
+# Estimated transmission of current glass covering
+SI1145_UV_RESPONSE=0.55
+
+[ForecastFile]
+FILE = /opt/weather/minforecast.txt
+
+[General]
+DAWN = 6
+DEBUG = 0
+DUSK = 19
+MININT = -(sys.maxsize - 1)
+SMOOTHING = 30
+
+[MQTT]
+SERVER = hab1.internal
+PORT = 1883
+CLIENTID = piweather
+PREFIX = /sensors/
+TIMEOUT = 60
+
+[Output]
+BRUTAL_VIEW = True
+ADA_LCD = True
+CONSOLE_OUTPUT = True
+SENSEHAT_DISPLAY = False
+PYWWS_PUBLISH = True
+MQTT_PUBLISH = True
+
+[PYWWS]
+STORAGE = /opt/weather/
+
+[Rates]
+ADALCD_OUTPUT_RATE = 15
+CONSOLE_OUTPUT_RATE = 60
+FLUSH_RATE = 180
+FORECASTFILE_REFRESH_RATE = 300
+MQTT_OUTPUT_RATE = 60
+SAMPLE_RATE = 10
+SENSEHAT_OUTPUT_RATE = 30
+STORE_RATE = 60
+
+[SenseHat]
+ROTATION = 90
+SCROLL = 0.09
+COLOUR_BG = True
+FG = [196,196,0]
+BG = [0,0,64]
+FG_NIGHT = [8,8,0]
+BG_NIGHT = [0,0,0]
+COLOUR_COLD = [0,16,32]
+COLOUR_MID = [0,48,0]
+COLOUR_HOT = [48,0,0]
+COLOUR_COLD_NIGHT = [0,0,7]
+COLOUR_MID_NIGHT = [0,7,0]
+COLOUR_HOT_NIGHT = [7,0,0]
+# Comfort Levels (Indoor Temp)
+COMFORT_LOW = 22
+COMFORT_HIGH = 28
+
+[Sensors]
+BMP085 = False
+BME280 = True
+FORECAST_FILE = True
+SENSEHAT = False
+SI1145 = True
