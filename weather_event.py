@@ -54,7 +54,8 @@ def EnOceanSensors():
 					transmitter_id = packet.sender_hex
 					transmitter_name = MapSensor(transmitter_id)
 					Log(LOG_LEVEL.INFO,"EnOceanSensors: {0}({1}): {2:0.1f}".format(transmitter_name, transmitter_id, temp))
-					Smoothing(transmitter_name, temp)
+					for x in xrange(config.getint('EnOcean','ANTI_SMOOTHING')):
+						Smoothing(transmitter_name, temp)
 		except queue.Empty:
 			return
 		except Exception:

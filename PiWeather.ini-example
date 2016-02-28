@@ -28,6 +28,10 @@ SI1145_UV=0
 SI1145_UV_RESPONSE=0.55
 
 [EnOcean]
+# Submit multiple times, to overcome SMOOTHING
+# EnOcean sensors send data very infrequently...
+# Should be a fraction of General->Smoothing
+ANTI_SMOOTHING = 10
 PORT = "/dev/ttyUSB0"
 # Map Sensor ID to Name
 # Sensor ID, in hex, with colons removed
