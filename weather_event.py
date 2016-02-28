@@ -86,7 +86,7 @@ def ForecastRefresh():
 		with open(forecast_file) as f:
 			forecast = f.read()
 	except:
-		forecast = ""
+		Log(LOG_LEVEL.ERROR,"ForecastRefresh: Error reading forecast from file")
 	Log(LOG_LEVEL.INFO,"ForecastRefresh: \"%s\"" % forecast)
 	Log(LOG_LEVEL.DEBUG,"ForecastRefresh: Complete")
 
@@ -157,7 +157,9 @@ def MqSendSingle(variable,value):
 
 def ReadConfig():
 	global config
-	config.read(CONFIG_FILE)
+	lconfig = configparser.ConfigParser()
+	lconfig.read(CONFIG_FILE)
+	config = lconfig
 
 def RelToAbsHumidity(relativeHumidity, temperature):
 	absoluteHumidity = 6.112 * math.exp((17.67 * temperature)/(temperature+243.5)) * relativeHumidity * 2.1674 / (273.15+temperature)
@@ -417,7 +419,6 @@ def WriteSenseHat():
 ########
 # CONFIG
 ########
-config = configparser.ConfigParser()
 CONFIG_FILE = 'PiWeather.ini'
 ReadConfig()
 
