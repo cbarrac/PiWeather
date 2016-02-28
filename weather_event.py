@@ -2,7 +2,10 @@
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
-import ConfigParser as configparser
+try:
+	import configparser
+except ImportError:
+	import ConfigParser as configparser
 import math
 import numpy
 import sys
@@ -35,6 +38,25 @@ def DewPoint(RH,TempC):
 	dp = (c * gamma) / (b - gamma)
 	Debug("DewPoint is {0:.1f}".format(dp))
 	return dp
+
+def EnOceanSensors():
+	while eoCommunicator.is_alive():
+		try:
+			# Loop to empty the queue...
+			packet = eoCommunicator.receive.get(block=False)
+			if packet.type == EOPACKET.RADIO and packet.rorg == EORORG.BS4:
+				# parse packet with given FUNC and TYPE
+				for k in packet.parse_eep(0x02, 0x05):
+					temp = packet.parsed[k]['value']
+					transmitter_id = packet.sender_hex
+					transmitter_name = MapSensor(transmitter_id)
+					Debug("EnOceanSensors: {0}({1}): {2:0.1f}".format(transmitter_name, transmitter_id, temp))
+					Smoothing(transmitter_name, temp)
+		except queue.Empty:
+			return
+		except Exception:
+			import traceback
+			traceback.print_exc(file=sys.stdout)
 
 def Flush(ds,dstatus):
 	Debug("Flush: ds")
@@ -81,6 +103,13 @@ def FormatDisplay(input,max_length):
                 display = display + "\n" + word + " "
                 length = len_word + 1
         return display
+
+def MapSensor(sensor_id):
+	sid = sensor_id.replace(':','')
+	try:
+		return config.get('EnOcean',sid)
+	except:
+		return sensor_id
 
 def MqClose():
     Debug("MqClose: Stopping loop")
@@ -133,10 +162,11 @@ def Sample():
 		try:
 			Smoothing('temp_in', (BmeSensor.read_temperature() + config.getfloat('Calibration','BME280_TEMP_IN')))
 			# Note: read_pressure returns Pa, divide by 100 for hectopascals (hPa)
-			Smoothing('abs_pressure', ((BmeSensor.read_pressure()/100.0) + config.getfloat('Calibration','ALTITUDE_PRESSURE_OFFSET') + config.getfloat('Calibration','BME280_PRESSURE')))
+			Smoothing('abs_pressure', ((BmeSensor.read_pressure()/100.0) + config.get('Calibration','ALTITUDE_PRESSURE_OFFSET',1) + config.getfloat('Calibration','BME280_PRESSURE')))
 			Smoothing('hum_in', (BmeSensor.read_humidity() + config.getfloat('Calibration','BME280_HUM_IN')))
 		except:
 			Debug("Error reading BME280")
+
 	if config.getboolean('Sensors','BMP085'):
 		try:
 			Smoothing('temp_in', (BmpSensor.read_temperature() + config.getfloat('Calibration','BMP085_TEMP_IN')))
@@ -146,7 +176,7 @@ def Sample():
 			Debug("Error reading BMP085")
 	if config.getboolean('Sensors','SENSEHAT'):
 		try:
-			Smoothing('abs_pressure', (PiSenseHat.get_pressure() + config.getfloat('Calibration','ALTITUDE_PRESSURE_OFFSET') + config.getfloat('Calibration','SENSEHAT_PRESSURE')))
+			Smoothing('abs_pressure', (PiSenseHat.get_pressure() + config.get('Calibration','ALTITUDE_PRESSURE_OFFSET',1) + config.getfloat('Calibration','SENSEHAT_PRESSURE')))
 			Smoothing('hum_in', (PiSenseHat.get_humidity() + config.getfloat('Calibration','SENSEHAT_HUM_IN')))
 			Smoothing('temp_in', (PiSenseHat.get_temperature_from_pressure() + config.getfloat('Calibration','SENSEHAT_TEMP_IN')))
 		except:
@@ -393,6 +423,13 @@ if config.getboolean('Sensors','BME280'):
 if config.getboolean('Sensors','BMP085'):
 	import Adafruit_BMP.BMP085 as BMP085
 	BmpSensor = BMP085.BMP085()
+if config.getboolean('Sensors','ENOCEAN'):
+	from enocean.communicators.serialcommunicator import SerialCommunicator as eoSerialCommunicator
+	from enocean.protocol.constants import PACKET as EOPACKET, RORG as EORORG
+	try:
+		import queue
+	except ImportError:
+		import Queue as queue
 if config.getboolean('Output','MQTT_PUBLISH'):
 	import paho.mqtt.publish as publish
 if config.getboolean('Output','PYWWS_PUBLISH'):
@@ -425,10 +462,14 @@ if config.getboolean('Output','SENSEHAT_DISPLAY'):
 	PiSenseHat.clear()
 	PiSenseHat.set_rotation(config.get('SenseHat','ROTATION'))
 try:
-	config.getfloat('Calibration','ALTITUDE_PRESSURE_OFFSET')
+	config.get('Calibration','ALTITUDE_PRESSURE_OFFSET',1)
 except:
 	PressureOffset = AltitudeOffset(config.getint('Calibration','ALTITUDE'))
+	Debug("PressureOffset: {}".format(PressureOffset))
 	config.set('Calibration','ALTITUDE_PRESSURE_OFFSET', PressureOffset)
+if config.getboolean('Sensors','ENOCEAN'):
+	eoCommunicator = eoSerialCommunicator(port=config.get('EnOcean','PORT'))
+	eoCommunicator.start()
 # Warm up sensors
 print "Waiting for sensors to settle"
 for i in range(1,6):
@@ -441,9 +482,8 @@ print "Scheduling events..."
 scheduler = BackgroundScheduler()
 scheduler.add_job(ReadConfig, 'interval', seconds=config.getint('Rates', 'CONFIG_REFRESH_RATE'), id='ReadConfig')
 scheduler.add_job(Sample, 'interval', seconds=config.getint('Rates','SAMPLE_RATE'), id='Sample')
-if config.getboolean('Output','PYWWS_PUBLISH'):
-	scheduler.add_job(Store, 'interval', seconds=config.getint('Rates','STORE_RATE'), id='Store', args=[ds])
-	scheduler.add_job(Flush, 'interval', seconds=config.getint('Rates','FLUSH_RATE'), id='Flush', args=[ds,dstatus])
+if config.getboolean('Sensors','ENOCEAN'):
+	scheduler.add_job(EnOceanSensors, 'interval', seconds=config.getint('Rates','ENOCEAN_RATE'), id='EnOcean')
 if config.getboolean('Sensors','FORECAST_FILE'):
 	scheduler.add_job(ForecastRefresh, 'interval', seconds=config.getint('Rates','FORECASTFILE_REFRESH_RATE'), id='Forecast')
 if config.getboolean('Output','ADA_LCD'):
@@ -452,6 +492,9 @@ if config.getboolean('Output','CONSOLE_OUTPUT'):
 	scheduler.add_job(WriteConsole, 'interval', seconds=config.getint('Rates','CONSOLE_OUTPUT_RATE'), id='Console')
 if config.getboolean('Output','MQTT_PUBLISH'):
 	scheduler.add_job(MqSendMultiple,'interval',seconds=config.getint('Rates','MQTT_OUTPUT_RATE'),id='MQTT')
+if config.getboolean('Output','PYWWS_PUBLISH'):
+	scheduler.add_job(Store, 'interval', seconds=config.getint('Rates','STORE_RATE'), id='Store', args=[ds])
+	scheduler.add_job(Flush, 'interval', seconds=config.getint('Rates','FLUSH_RATE'), id='Flush', args=[ds,dstatus])
 if config.getboolean('Output','SENSEHAT_DISPLAY'):
 	scheduler.add_job(WriteSenseHat, 'interval', seconds=config.getint('Rates','SENSEHAT_OUTPUT_RATE'), id='SenseHat')
 
@@ -480,4 +523,7 @@ except (KeyboardInterrupt, SystemExit):
 		AdaLcd.clear()
 	if config.getboolean('Output','SENSEHAT_DISPLAY'):
 		PiSenseHat.clear()
+	if config.getboolean('Sensors','ENOCEAN'):
+		if eoCommunicator.is_alive():
+			eoCommunicator.stop()
 	print "Goodbye"

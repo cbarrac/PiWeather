@@ -27,6 +27,13 @@ SI1145_UV=0
 # Estimated transmission of current glass covering
 SI1145_UV_RESPONSE=0.55
 
+[EnOcean]
+PORT = "/dev/ttyUSB0"
+# Map Sensor ID to Name
+# Sensor ID, in hex, with colons removed
+# e.g. 01:81:23:45 -> 01812345
+01812345 = room1
+
 [ForecastFile]
 FILE = /opt/weather/minforecast.txt
 
