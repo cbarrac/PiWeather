@@ -39,8 +39,10 @@ FILE = /opt/weather/minforecast.txt
 
 [General]
 DAWN = 6
-DEBUG = 0
 DUSK = 19
+# None, Error, Info, Debug
+# 0     1      2     3
+LOG_LEVEL = 1
 MININT = -(sys.maxsize - 1)
 SMOOTHING = 30
 

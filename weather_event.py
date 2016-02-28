@@ -2,6 +2,7 @@
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
+from enum import IntEnum
 try:
 	import configparser
 except ImportError:
@@ -10,6 +11,12 @@ import math
 import numpy
 import sys
 import time
+
+class LOG_LEVEL(IntEnum):
+	NONE = 0
+	ERROR = 1
+	INFO = 2
+	DEBUG = 3
 
 ########
 # Functions
@@ -24,19 +31,15 @@ def AltitudeOffset(Altitude):
 	s = 101325 * math.pow (1,5.25588)
 	return (s - p) / 100
 
-def Debug(message):
-	if config.getint('General','DEBUG') == 1:
-		print message
-
 def DewPoint(RH,TempC):
-	Debug("DewPoint: Calculating for RH:{0:.1f} and Temp: {1:.1f}".format(RH,TempC))
+	Log(LOG_LEVEL.INFO,"DewPoint: Calculating for RH:{0:.1f} and Temp: {1:.1f}".format(RH,TempC))
 	# Paroscientific constants (0 <> 60 degc, 0 <> 100% RH)
 	a = 6.105
 	b = 17.271
 	c = 237.7
 	gamma = numpy.log(RH/100.0) + (b * TempC / (c + TempC))
 	dp = (c * gamma) / (b - gamma)
-	Debug("DewPoint is {0:.1f}".format(dp))
+	Log(LOG_LEVEL.INFO,"DewPoint is {0:.1f}".format(dp))
 	return dp
 
 def EnOceanSensors():
@@ -50,7 +53,7 @@ def EnOceanSensors():
 					temp = packet.parsed[k]['value']
 					transmitter_id = packet.sender_hex
 					transmitter_name = MapSensor(transmitter_id)
-					Debug("EnOceanSensors: {0}({1}): {2:0.1f}".format(transmitter_name, transmitter_id, temp))
+					Log(LOG_LEVEL.INFO,"EnOceanSensors: {0}({1}): {2:0.1f}".format(transmitter_name, transmitter_id, temp))
 					Smoothing(transmitter_name, temp)
 		except queue.Empty:
 			return
@@ -59,23 +62,23 @@ def EnOceanSensors():
 			traceback.print_exc(file=sys.stdout)
 
 def Flush(ds,dstatus):
-	Debug("Flush: ds")
+	Log(LOG_LEVEL.DEBUG,"Flush: ds")
 	ds.flush()
-	Debug("Flush: Write dstatus")
+	Log(LOG_LEVEL.DEBUG,"Flush: Write dstatus")
 	try:
 		dstatus.set('last update', 'logged', datetime.utcnow().isoformat(' '))
 		dstatus.set('fixed', 'fixed block', str(readings))
 	except:
-		Debug("Flush: Error setting status")
-	Debug("Flush: dstatus")
+		Log(LOG_LEVEL.ERROR,"Flush: Error setting status")
+	Log(LOG_LEVEL.DEBUG,"Flush: dstatus")
 	try:
 		dstatus.flush()
 	except:
-		Debug("Flush: error in flush")
-	Debug("Flush: Complete")
+		Log(LOG_LEVEL.ERROR,"Flush: error in flush")
+	Log(LOG_LEVEL.DEBUG,"Flush: Complete")
 
 def ForecastRefresh():
-	Debug("ForecastRefresh: start")
+	Log(LOG_LEVEL.DEBUG,"ForecastRefresh: start")
 	global forecast
 	forecast_file = config.get('ForecastFile','FILE')
 	try:
@@ -83,8 +86,8 @@ def ForecastRefresh():
 			forecast = f.read()
 	except:
 		forecast = ""
-	Debug("ForecastRefresh: \"%s\"" % forecast)
-	Debug("ForecastRefresh: Complete")
+	Log(LOG_LEVEL.INFO,"ForecastRefresh: \"%s\"" % forecast)
+	Log(LOG_LEVEL.DEBUG,"ForecastRefresh: Complete")
 
 def FormatDisplay(input,max_length):
     input_len = len(input)
@@ -104,6 +107,12 @@ def FormatDisplay(input,max_length):
                 length = len_word + 1
         return display
 
+def Log(level,message):
+	# None, Error, Info, Debug
+	# 0     1      2     3
+	if config.getint('General','LOG_LEVEL') >= level:
+		print message
+
 def MapSensor(sensor_id):
 	sid = sensor_id.replace(':','')
 	try:
@@ -112,37 +121,37 @@ def MapSensor(sensor_id):
 		return sensor_id
 
 def MqClose():
-    Debug("MqClose: Stopping loop")
+    Log(LOG_LEVEL.DEBUG,"MqClose: Stopping loop")
     mqtt_client.loop_stop()
-    Debug("MqClose: Disconnecting")
+    Log(LOG_LEVEL.DEBUG,"MqClose: Disconnecting")
     mqtt_client.disconnect()
-    Debug("MqClose: Complete")
+    Log(LOG_LEVEL.DEBUG,"MqClose: Complete")
 
 def MqInit():
     global mqtt_client
     mqtt_client.connect(config.get('MQTT','SERVER'), config.getint('MQTT','PORT'), config.getint('MQTT','TIMEOUT'))
-    Debug("MqInit: Starting loop")
+    Log(LOG_LEVEL.DEBUG,"MqInit: Starting loop")
     mqtt_client.loop_start()
 
 def MqSendMultiple():
-	Debug("MqSendMultiple: Build Message")
+	Log(LOG_LEVEL.DEBUG,"MqSendMultiple: Build Message")
 	msgs = []
 	for reading in readings:
 		mq_path = config.get('MQTT','PREFIX') + reading
 		value = readings[reading][0]
 		msg = {'topic':mq_path,'payload':value}
-		Debug("MqSendMultiple: Payload Element {0}".format(msg))
+		Log(LOG_LEVEL.DEBUG,"MqSendMultiple: Payload Element {0}".format(msg))
 		msgs.append(msg)
-	Debug("MqSendMultiple: Sending multiple")
+	Log(LOG_LEVEL.DEBUG,"MqSendMultiple: Sending multiple")
 	try:
 		publish.multiple(msgs,hostname=config.get('MQTT','SERVER'),port=config.getint('MQTT','PORT'),client_id=config.get('MQTT','CLIENTID'))
 	except:
-		Debug("Error sending MQTT message")
-	Debug("MqSendMultiple: Complete")
+		Log(LOG_LEVEL.ERROR,"Error sending MQTT message")
+	Log(LOG_LEVEL.DEBUG,"MqSendMultiple: Complete")
 
 def MqSendSingle(variable,value):
     mq_path = config.get('MQTT','PREFIX') + variable
-    Debug("MqSendSingle: Sending {0} = {1:0.1f}".format(mq_path,value))
+    Log(LOG_LEVEL.DEBUG,"MqSendSingle: Sending {0} = {1:0.1f}".format(mq_path,value))
     mqtt_client.publish(mq_path, value)
 
 def ReadConfig():
@@ -154,7 +163,7 @@ def RelToAbsHumidity(relativeHumidity, temperature):
 	return absoluteHumidity
 
 def Sample():
-	Debug("Sample: read")
+	Log(LOG_LEVEL.DEBUG,"Sample: read")
 	global readings
 	if config.getboolean('Sensors','BME280'):
 		# !Make sure to read temperature first!
@@ -165,7 +174,7 @@ def Sample():
 			Smoothing('abs_pressure', ((BmeSensor.read_pressure()/100.0) + config.get('Calibration','ALTITUDE_PRESSURE_OFFSET',1) + config.getfloat('Calibration','BME280_PRESSURE')))
 			Smoothing('hum_in', (BmeSensor.read_humidity() + config.getfloat('Calibration','BME280_HUM_IN')))
 		except:
-			Debug("Error reading BME280")
+			Log(LOG_LEVEL.ERROR,"Error reading BME280")
 
 	if config.getboolean('Sensors','BMP085'):
 		try:
@@ -173,37 +182,37 @@ def Sample():
 			# Note: read_pressure returns Pa, divide by 100 for hectopascals (hPa)
 			Smoothing('abs_pressure', ((BmpSensor.read_pressure()/100.0) + config.getfloat('Calibration','BMP085_PRESSURE')))
 		except:
-			Debug("Error reading BMP085")
+			Log(LOG_LEVEL.ERROR,"Error reading BMP085")
 	if config.getboolean('Sensors','SENSEHAT'):
 		try:
 			Smoothing('abs_pressure', (PiSenseHat.get_pressure() + config.get('Calibration','ALTITUDE_PRESSURE_OFFSET',1) + config.getfloat('Calibration','SENSEHAT_PRESSURE')))
 			Smoothing('hum_in', (PiSenseHat.get_humidity() + config.getfloat('Calibration','SENSEHAT_HUM_IN')))
 			Smoothing('temp_in', (PiSenseHat.get_temperature_from_pressure() + config.getfloat('Calibration','SENSEHAT_TEMP_IN')))
 		except:
-			Debug("Error reading SENSEHAT")
+			Log(LOG_LEVEL.ERROR,"Error reading SENSEHAT")
 	if config.getboolean('Sensors','SI1145'):
 		try:
 			Smoothing('illuminance', ((SiSensor.readVisible() + config.getfloat('Calibration','SI1145_VISIBLE')) / config.getfloat('Calibration','SI1145_VISIBLE_RESPONSE')))
 			Smoothing('ir', ((SiSensor.readIR() + config.getfloat('Calibration','SI1145_IR')) / config.getfloat('Calibration','SI1145_IR_RESPONSE')))
 			Smoothing('uv', (((SiSensor.readUV()/100.0) + config.getfloat('Calibration','SI1145_UV')) / config.getfloat('Calibration','SI1145_UV_RESPONSE')))
 		except:
-			Debug("Error reading SI1145")
+			Log(LOG_LEVEL.ERROR,"Error reading SI1145")
 	if config.getboolean('Sensors','BME280') or config.getboolean('Sensors','BMP085') or config.getboolean('Sensors','SENSEHAT'):
 		try:
 			Smoothing('dew_point_in',DewPoint(readings['hum_in'][0],readings['temp_in'][0]))
 		except:
-			Debug("Error calculating Dew Point")
-	Debug("Sample: Complete")
+			Log(LOG_LEVEL.ERROR,"Error calculating Dew Point")
+	Log(LOG_LEVEL.DEBUG,"Sample: Complete")
 
 def Smoothing(channel, value):
-	Debug("Smoothing: Begin")
+	Log(LOG_LEVEL.DEBUG,"Smoothing: Begin")
 	if global_init:
-		Debug("Init Mode: returning with no storage")
+		Log(LOG_LEVEL.DEBUG,"Init Mode: returning with no storage")
 		return
 	average = 0
 	global readings
 	if readings.get(channel,None) is None:
-		Debug("Init %s" % channel)
+		Log(LOG_LEVEL.DEBUG,"Init %s" % channel)
 		readings[channel] = [config.getint('General','MININT') for x in xrange(config.getint('General','SMOOTHING')+1)]
 	for i in range(1,(config.getint('General','SMOOTHING'))):
 		if readings[channel][i+1] == config.getint('General','MININT'):
@@ -214,11 +223,11 @@ def Smoothing(channel, value):
 	average += value
 	average = average / config.getint('General','SMOOTHING')
 	readings[channel][0] = average
-	Debug("Smoothing: Readings[%s]: %s" % (channel, readings[channel]))
-	Debug("Smoothing: Complete")
+	Log(LOG_LEVEL.DEBUG,"Smoothing: Readings[%s]: %s" % (channel, readings[channel]))
+	Log(LOG_LEVEL.DEBUG,"Smoothing: Complete")
 
 def Store(ds):
-	Debug("Store: Write to data")
+	Log(LOG_LEVEL.DEBUG,"Store: Write to data")
 	global data
 	data = {}
 	try:
@@ -267,12 +276,12 @@ def Store(ds):
 		data['wind_gust'] = float(readings['wind_gust'][0])
 	except:
 		data['wind_gust'] = None
-	Debug("Store: Write to ds")
+	Log(LOG_LEVEL.DEBUG,"Store: Write to ds")
 	try:
 		ds[datetime.utcnow()] = data
 	except:
-		Debug("Store: Error pushing data")
-	Debug("Store: Complete")
+		Log(LOG_LEVEL.ERROR,"Store: Error pushing data")
+	Log(LOG_LEVEL.DEBUG,"Store: Complete")
 
 def WriteAdaLcd():
 	global AdaScreenNumber
@@ -287,12 +296,12 @@ def WriteAdaLcd():
 			msg = "No message"
 			AdaScreenNumber = 0
 	except:
-		Debug("WriteAdaLcd: Error creating message")
+		Log(LOG_LEVEL.ERROR,"WriteAdaLcd: Error creating message")
 		msg = "Data Error"
 	try:
 		AdaLcd.clear()
 	except:
-		Debug("WriteAdaLcd: Error clearing LCD")
+		Log(LOG_LEVEL.ERROR,"WriteAdaLcd: Error clearing LCD")
 	try:
 		uv = readings['uv'][0]
 		if uv < 3.0:
@@ -311,14 +320,14 @@ def WriteAdaLcd():
 			# Extreme
 			AdaLcd.set_color(1.0,0.3,1.0)	#rgb(255,64,255)
 	except:
-		Debug("WriteAdaLcd: Error setting backlight")
+		Log(LOG_LEVEL.ERROR,"WriteAdaLcd: Error setting backlight")
 	try:
 		AdaLcd.message(msg)
 	except:
-		Debug("WriteAdaLcd: Error writing message")
+		Log(LOG_LEVEL.ERROR,"WriteAdaLcd: Error writing message")
 
 def WriteConsole():
-	Debug("WriteConsole: start")
+	Log(LOG_LEVEL.DEBUG,"WriteConsole: start")
 	print time.ctime(),
 	if config.getboolean('Output','BRUTAL_VIEW'):
 		for reading in readings:
@@ -362,10 +371,10 @@ def WriteConsole():
 	except:
 		print "Forecast: x",
 	print
-	Debug("WriteConsole: Complete")
+	Log(LOG_LEVEL.DEBUG,"WriteConsole: Complete")
 
 def WriteSenseHat():
-	Debug("WriteSenseHat: start")
+	Log(LOG_LEVEL.DEBUG,"WriteSenseHat: start")
 	global forecast_toggle
 	if config.getint('Rates','FORECAST_REFRESH_RATE') > 0 and forecast_toggle == 1 and forecast:
 		forecast_toggle = 0
@@ -401,7 +410,7 @@ def WriteSenseHat():
 			Background = config.get('SenseHat','BG_NIGHT')
 	PiSenseHat.show_message(msg, scroll_speed=config.get('SenseHat','SCROLL'), text_colour=Foreground, back_colour=Background)
 	PiSenseHat.clear()
-	Debug("WriteSenseHat: Complete")
+	Log(LOG_LEVEL.DEBUG,"WriteSenseHat: Complete")
 
 
 ########
@@ -465,7 +474,7 @@ try:
 	config.get('Calibration','ALTITUDE_PRESSURE_OFFSET',1)
 except:
 	PressureOffset = AltitudeOffset(config.getint('Calibration','ALTITUDE'))
-	Debug("PressureOffset: {}".format(PressureOffset))
+	Log(LOG_LEVEL.INFO,"PressureOffset: {}".format(PressureOffset))
 	config.set('Calibration','ALTITUDE_PRESSURE_OFFSET', PressureOffset)
 if config.getboolean('Sensors','ENOCEAN'):
 	eoCommunicator = eoSerialCommunicator(port=config.get('EnOcean','PORT'))
