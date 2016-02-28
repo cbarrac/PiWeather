@@ -54,7 +54,7 @@ PORT = /dev/ttyUSB0
 
 [ForecastFile]
 FILE = /opt/weather/minforecast.txt
-FORECAST_CHANNEL = forecasts/zambretti
+FORECAST_CHANNEL = forecast/zambretti
 
 [General]
 DAWN = 6
