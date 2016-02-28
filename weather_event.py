@@ -290,7 +290,7 @@ def WriteAdaLcd():
 	global AdaScreenNumber
 	try:
 		if AdaScreenNumber == 0:
-			msg = "{0:0.1f}C {1:0.0f}% UV:{2:0.1f}\n{3:0.1f}hPa".format(readings['temp_in'][0],readings['hum_in'][0],readings['uv'][0],readings['abs_pressure'][0])
+			msg = "{0:0.1f}C {1:0.0f}% UV{2:0.1f}\n{3:0.1f}hPa".format(readings['temp_in'][0],readings['hum_in'][0],readings['uv'][0],readings['abs_pressure'][0])
 			AdaScreenNumber = 1
 		elif AdaScreenNumber == 1:
 			msg = FormatDisplay(forecast, config.getint('Adafruit_LCD','LCD_WIDTH'))
