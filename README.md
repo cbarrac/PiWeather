@@ -13,15 +13,14 @@ I've stopped work on the PiSense parts of this project, as the readings I'm gett
 * Adafruit BME280 - Temperature, Pressure, Humidity
 * Adafruit SI1124 - Light, UV
 * Adafruit BMP085 - Temperature, Pressure
+* EnOcean - Only Temperature sensors are decoded at the moment.
 
 ## Displays
 * Adafruit 16x2 RGB LCD Display (on an Adafruit Pi Plate - providing an i2c interface)
 * Raspberry Pi SenseHat
 
 ## Reading data
-*Basic*: use `weather.py` - single-threaded, variable timing, not recommended *DEPRECATED*
-
-*Advanced*: use `weather_event.py` - multi-threaded, better timing, recommended
+Use `weather_event.py` - multi-threaded, better timing, recommended
 
 ## Timing
 `weather_event.py` uses APScheduler to handle threading and timing. Each
@@ -34,13 +33,17 @@ section of code runs on a separate timer/thread:
 * WriteSenseHat: Output Temperature/Pressure/Humidity to the Hat
 
 ## Configuration
-All the configuration is in the variables at the top of the file.
+All the configuration is in the `PiWeather.ini` file. A sample called
+`PiWeather.ini-example` is included. Copy and edit as appropriate.
+Configuration is reloaded on a timer (See the `Rates` section of the config
+file)
 
-Look at the `# Event Periods` section for timing (in seconds)
+Look at the `Rates` section for timing (in seconds)
 
 `SMOOTHING` defines the size of the sliding window - used to average out readings
 
-`ROTATION` defines which way the Hat is siting. GPIO pins in top left corner == 0,
+### Sense Hat
+`ROTATION` defines which way the SenseHat is siting. GPIO pins in top left corner == 0,
 USB ports top == 90 et cetera
 
 _Daytime_ is considered any hour between `DAWN` and `DUSK`, outside this period
@@ -49,3 +52,9 @@ the `..._NIGHT` values are used for the SenseHat display.
 A _comfortable_ temperature is considered any `temp_in` (Indoors) temperature between `COMFORT_LOW` and `COMFORT_HIGH`, and thus corresponds to a SenseHat background of `COLOUR_MID`, `COLOUR_COLD` and `COLOUR_HOT` are used either side of this comfort zone.
 
 Note: `SCROLL` (scroll rate) - higher values == slower
+
+### EnOcean
+Channel names for recording the data (e.g. for pushing to MQTT) are stored in
+the configuration file. Each sensor has an entry with its hexadecimal address
+and a name. e.g. `01812345 = room1`, would mean an sensor with address
+`01:81:23:45` would be stored as `room1`
