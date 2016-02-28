@@ -11,6 +11,7 @@ import math
 import numpy
 import sys
 import time
+import traceback
 
 class LOG_LEVEL(IntEnum):
 	NONE = 0
@@ -59,8 +60,7 @@ def EnOceanSensors():
 		except queue.Empty:
 			return
 		except Exception:
-			import traceback
-			traceback.print_exc(file=sys.stdout)
+			Log(LOG_LEVEL.ERROR,"EnOceanSensors: Error in communications" + traceback.format_exc())
 
 def Flush(ds,dstatus):
 	Log(LOG_LEVEL.DEBUG,"Flush: ds")
@@ -70,12 +70,12 @@ def Flush(ds,dstatus):
 		dstatus.set('last update', 'logged', datetime.utcnow().isoformat(' '))
 		dstatus.set('fixed', 'fixed block', str(readings))
 	except:
-		Log(LOG_LEVEL.ERROR,"Flush: Error setting status")
+		Log(LOG_LEVEL.ERROR,"Flush: Error setting status" + traceback.format_exc())
 	Log(LOG_LEVEL.DEBUG,"Flush: dstatus")
 	try:
 		dstatus.flush()
 	except:
-		Log(LOG_LEVEL.ERROR,"Flush: error in flush")
+		Log(LOG_LEVEL.ERROR,"Flush: error in flush" + traceback.format_exc())
 	Log(LOG_LEVEL.DEBUG,"Flush: Complete")
 
 def ForecastRefresh():
@@ -86,7 +86,14 @@ def ForecastRefresh():
 		with open(forecast_file) as f:
 			forecast = f.read()
 	except:
-		Log(LOG_LEVEL.ERROR,"ForecastRefresh: Error reading forecast from file")
+		Log(LOG_LEVEL.ERROR,"ForecastRefresh: Error reading forecast from file" + traceback.format_exc())
+	try:
+		channel = config.get('ForecastFile','FORECAST_CHANNEL')
+		if readings.get(channel,None) is None:
+			readings[channel] = [0]
+		readings[channel][0] = forecast
+	except:
+		Log(LOG_LEVEL.ERROR,"ForecastRefresh: Could not populate forecast to memory store" + traceback.format_exc())
 	Log(LOG_LEVEL.INFO,"ForecastRefresh: \"%s\"" % forecast)
 	Log(LOG_LEVEL.DEBUG,"ForecastRefresh: Complete")
 
@@ -147,7 +154,7 @@ def MqSendMultiple():
 	try:
 		publish.multiple(msgs,hostname=config.get('MQTT','SERVER'),port=config.getint('MQTT','PORT'),client_id=config.get('MQTT','CLIENTID'))
 	except:
-		Log(LOG_LEVEL.ERROR,"Error sending MQTT message")
+		Log(LOG_LEVEL.ERROR,"Error sending MQTT message" + traceback.format_exc())
 	Log(LOG_LEVEL.DEBUG,"MqSendMultiple: Complete")
 
 def MqSendSingle(variable,value):
@@ -172,39 +179,39 @@ def Sample():
 		# !Make sure to read temperature first!
 		# !The library sets OverSampling and waits for valid values _only_ in the read_raw_temperature function!
 		try:
-			Smoothing('temp_in', (BmeSensor.read_temperature() + config.getfloat('Calibration','BME280_TEMP_IN')))
+			Smoothing(config.get('BME280','TEMPERATURE_CHANNEL'), (BmeSensor.read_temperature() + config.getfloat('Calibration','BME280_TEMP_IN')))
 			# Note: read_pressure returns Pa, divide by 100 for hectopascals (hPa)
-			Smoothing('abs_pressure', ((BmeSensor.read_pressure()/100.0) + config.get('Calibration','ALTITUDE_PRESSURE_OFFSET',1) + config.getfloat('Calibration','BME280_PRESSURE')))
-			Smoothing('hum_in', (BmeSensor.read_humidity() + config.getfloat('Calibration','BME280_HUM_IN')))
+			Smoothing(config.get('BME280','PRESSURE_CHANNEL'), ((BmeSensor.read_pressure()/100.0) + config.get('Calibration','ALTITUDE_PRESSURE_OFFSET',1) + config.getfloat('Calibration','BME280_PRESSURE')))
+			Smoothing(config.get('BME280','HUMIDITY_CHANNEL'), (BmeSensor.read_humidity() + config.getfloat('Calibration','BME280_HUM_IN')))
 		except:
-			Log(LOG_LEVEL.ERROR,"Error reading BME280")
+			Log(LOG_LEVEL.ERROR,"Error reading BME280: " + traceback.format_exc())
 
 	if config.getboolean('Sensors','BMP085'):
 		try:
-			Smoothing('temp_in', (BmpSensor.read_temperature() + config.getfloat('Calibration','BMP085_TEMP_IN')))
+			Smoothing(config.get('BMP085','TEMPERATURE_CHANNEL'), (BmpSensor.read_temperature() + config.getfloat('Calibration','BMP085_TEMP_IN')))
 			# Note: read_pressure returns Pa, divide by 100 for hectopascals (hPa)
-			Smoothing('abs_pressure', ((BmpSensor.read_pressure()/100.0) + config.getfloat('Calibration','BMP085_PRESSURE')))
+			Smoothing(config.get('BME280','PRESSURE_CHANNEL'), ((BmpSensor.read_pressure()/100.0) + config.getfloat('Calibration','BMP085_PRESSURE')))
 		except:
-			Log(LOG_LEVEL.ERROR,"Error reading BMP085")
+			Log(LOG_LEVEL.ERROR,"Error reading BMP085" + traceback.format_exc())
 	if config.getboolean('Sensors','SENSEHAT'):
 		try:
-			Smoothing('abs_pressure', (PiSenseHat.get_pressure() + config.get('Calibration','ALTITUDE_PRESSURE_OFFSET',1) + config.getfloat('Calibration','SENSEHAT_PRESSURE')))
-			Smoothing('hum_in', (PiSenseHat.get_humidity() + config.getfloat('Calibration','SENSEHAT_HUM_IN')))
-			Smoothing('temp_in', (PiSenseHat.get_temperature_from_pressure() + config.getfloat('Calibration','SENSEHAT_TEMP_IN')))
+			Smoothing(config.get('SENSEHAT','PRESSURE_CHANNEL'), (PiSenseHat.get_pressure() + config.get('Calibration','ALTITUDE_PRESSURE_OFFSET',1) + config.getfloat('Calibration','SENSEHAT_PRESSURE')))
+			Smoothing(config.get('SENSEHAT','HUMIDITY_CHANNEL'), (PiSenseHat.get_humidity() + config.getfloat('Calibration','SENSEHAT_HUM_IN')))
+			Smoothing(config.get('SENSEHAT','TEMPERATURE_CHANNEL'), (PiSenseHat.get_temperature_from_pressure() + config.getfloat('Calibration','SENSEHAT_TEMP_IN')))
 		except:
-			Log(LOG_LEVEL.ERROR,"Error reading SENSEHAT")
+			Log(LOG_LEVEL.ERROR,"Error reading SENSEHAT" + traceback.format_exc())
 	if config.getboolean('Sensors','SI1145'):
 		try:
-			Smoothing('illuminance', ((SiSensor.readVisible() + config.getfloat('Calibration','SI1145_VISIBLE')) / config.getfloat('Calibration','SI1145_VISIBLE_RESPONSE')))
-			Smoothing('ir', ((SiSensor.readIR() + config.getfloat('Calibration','SI1145_IR')) / config.getfloat('Calibration','SI1145_IR_RESPONSE')))
-			Smoothing('uv', (((SiSensor.readUV()/100.0) + config.getfloat('Calibration','SI1145_UV')) / config.getfloat('Calibration','SI1145_UV_RESPONSE')))
+			Smoothing(config.get('SI1145','VISIBLE_CHANNEL'), ((SiSensor.readVisible() + config.getfloat('Calibration','SI1145_VISIBLE')) / config.getfloat('Calibration','SI1145_VISIBLE_RESPONSE')))
+			Smoothing(config.get('SI1145','IR_CHANNEL'), ((SiSensor.readIR() + config.getfloat('Calibration','SI1145_IR')) / config.getfloat('Calibration','SI1145_IR_RESPONSE')))
+			Smoothing(config.get('SI1145','UV_CHANNEL'), (((SiSensor.readUV()/100.0) + config.getfloat('Calibration','SI1145_UV')) / config.getfloat('Calibration','SI1145_UV_RESPONSE')))
 		except:
-			Log(LOG_LEVEL.ERROR,"Error reading SI1145")
-	if config.getboolean('Sensors','BME280') or config.getboolean('Sensors','BMP085') or config.getboolean('Sensors','SENSEHAT'):
+			Log(LOG_LEVEL.ERROR,"Error reading SI1145" + traceback.format_exc())
+	if config.getboolean('Sensors','DEWPOINT_CALC') and not global_init:
 		try:
-			Smoothing('dew_point_in',DewPoint(readings['hum_in'][0],readings['temp_in'][0]))
+			Smoothing(config.get('DewPoint','DEWPOINT_CHANNEL'),DewPoint(readings[config.get('DewPoint','HUMIDITY_CHANNEL')][0],readings[config.get('DewPoint','TEMPERATURE_CHANNEL')][0]))
 		except:
-			Log(LOG_LEVEL.ERROR,"Error calculating Dew Point")
+			Log(LOG_LEVEL.ERROR,"Error calculating Dew Point" + traceback.format_exc())
 	Log(LOG_LEVEL.DEBUG,"Sample: Complete")
 
 def Smoothing(channel, value):
@@ -234,63 +241,63 @@ def Store(ds):
 	global data
 	data = {}
 	try:
-		data['abs_pressure'] = int(readings['abs_pressure'][0])
+		data['abs_pressure'] = int(readings[config.get('PYWWS','ABS_PRESSURE_CHANNEL')][0])
 	except:
 		data['abs_pressure'] = None
 	data['delay'] = int(0)
 	try:
-		data['hum_in'] = int(readings['hum_in'][0])
+		data['hum_in'] = int(readings[config.get('PYWWS','HUM_IN_CHANNEL')][0])
 	except:
 		data['hum_in'] = None
 	try:
-		data['hum_out'] = int(readings['hum_out'][0])
+		data['hum_out'] = int(readings[config.get('PYWWS','HUM_OUT_CHANNEL')][0])
 	except:
 		data['hum_out'] = None
 	try:
-		data['illuminance'] = float(readings['illuminance'][0])
+		data['illuminance'] = float(readings[config.get('PYWWS','ILLUMINANCE_CHANNEL')][0])
 	except:
 		data['illuminance'] = None
 	try:
-		data['rain'] = float(readings['rain'][0])
+		data['rain'] = float(readings[config.get('PYWWS','RAIN_CHANNEL')][0])
 	except:
 		data['rain'] = 0
 	data['status'] = 0
 	try:
-		data['temp_in'] = float(readings['temp_in'][0])
+		data['temp_in'] = float(readings[config.get('PYWWS','TEMP_IN_CHANNEL')][0])
 	except:
 		data['temp_in'] = None
 	try:
-		data['temp_out'] = float(readings['temp_out'][0])
+		data['temp_out'] = float(readings[config.get('PYWWS','TEMP_OUT_CHANNEL')][0])
 	except:
 		data['temp_out'] = None
 	try:
-		data['uv'] = int(readings['uv'][0])
+		data['uv'] = int(readings[config.get('PYWWS','UV_CHANNEL')][0])
 	except:
 		data['uv'] = None
 	try:
-		data['wind_ave'] = float(readings['wind_ave'][0])
+		data['wind_ave'] = float(readings[config.get('PYWWS','WIND_AVE_CHANNEL')][0])
 	except:
 		data['wind_ave'] = None
 	try:
-		data['wind_dir'] = int(readings['wind_dir'][0])
+		data['wind_dir'] = int(readings[config.get('PYWWS','WIND_DIR_CHANNEL')][0])
 	except:
 		data['wind_dir'] = None
 	try:
-		data['wind_gust'] = float(readings['wind_gust'][0])
+		data['wind_gust'] = float(readings[config.get('PYWWS','WIND_GUST_CHANNEL')][0])
 	except:
 		data['wind_gust'] = None
 	Log(LOG_LEVEL.DEBUG,"Store: Write to ds")
 	try:
 		ds[datetime.utcnow()] = data
 	except:
-		Log(LOG_LEVEL.ERROR,"Store: Error pushing data")
+		Log(LOG_LEVEL.ERROR,"Store: Error pushing data" + traceback.format_exc())
 	Log(LOG_LEVEL.DEBUG,"Store: Complete")
 
 def WriteAdaLcd():
 	global AdaScreenNumber
 	try:
 		if AdaScreenNumber == 0:
-			msg = "{0:0.1f}C {1:0.0f}% UV{2:0.1f}\n{3:0.1f}hPa".format(readings['temp_in'][0],readings['hum_in'][0],readings['uv'][0],readings['abs_pressure'][0])
+			msg = "{0:0.1f}C {1:0.0f}% UV{2:0.1f}\n{3:0.1f}hPa".format(readings[config.get('PYWWS','TEMP_IN_CHANNEL')][0],readings[config.get('PYWWS','HUM_IN_CHANNEL')][0],readings[config.get('PYWWS','UV_CHANNEL')][0],readings[config.get('PYWWS','ABS_PRESSURE_CHANNEL')][0])
 			AdaScreenNumber = 1
 		elif AdaScreenNumber == 1:
 			msg = FormatDisplay(forecast, config.getint('Adafruit_LCD','LCD_WIDTH'))
@@ -299,14 +306,14 @@ def WriteAdaLcd():
 			msg = "No message"
 			AdaScreenNumber = 0
 	except:
-		Log(LOG_LEVEL.ERROR,"WriteAdaLcd: Error creating message")
+		Log(LOG_LEVEL.ERROR,"WriteAdaLcd: Error creating message" + traceback.format_exc())
 		msg = "Data Error"
 	try:
 		AdaLcd.clear()
 	except:
-		Log(LOG_LEVEL.ERROR,"WriteAdaLcd: Error clearing LCD")
+		Log(LOG_LEVEL.ERROR,"WriteAdaLcd: Error clearing LCD" + traceback.format_exc())
 	try:
-		uv = readings['uv'][0]
+		uv = readings[config.get('Adafruit_LCD','UV_CHANNEL')][0]
 		if uv < 3.0:
 			# Low
 			AdaLcd.set_color(0.3,1.0,0.3)	#rgb(64,255,64)
@@ -323,11 +330,11 @@ def WriteAdaLcd():
 			# Extreme
 			AdaLcd.set_color(1.0,0.3,1.0)	#rgb(255,64,255)
 	except:
-		Log(LOG_LEVEL.ERROR,"WriteAdaLcd: Error setting backlight")
+		Log(LOG_LEVEL.ERROR,"WriteAdaLcd: Error setting backlight" + traceback.format_exc())
 	try:
 		AdaLcd.message(msg)
 	except:
-		Log(LOG_LEVEL.ERROR,"WriteAdaLcd: Error writing message")
+		Log(LOG_LEVEL.ERROR,"WriteAdaLcd: Error writing message" + traceback.format_exc())
 
 def WriteConsole():
 	Log(LOG_LEVEL.DEBUG,"WriteConsole: start")
@@ -335,44 +342,47 @@ def WriteConsole():
 	if config.getboolean('Output','BRUTAL_VIEW'):
 		for reading in readings:
 			value = readings[reading][0]
-			print "{0}: {1:.1f}".format(reading,value),
+			try:
+				print "{0}: {1:.1f}".format(reading,value),
+			except:
+				print "{0}: {1}".format(reading,value),
 	else:
 		try:
-			print "TempIn: {0:0.1f}".format(readings['temp_in'][0]),
+			print "TempIn: {0:0.1f}".format(readings[config.get('PYWWS','TEMP_IN_CHANNEL')][0]),
 		except:
 			print "TempIn: x",
 		try:
-			print "TempOut: {0:0.1f}".format(readings['temp_out'][0]),
+			print "TempOut: {0:0.1f}".format(readings[config.get('PYWWS','TEMP_OUT_CHANNEL')][0]),
 		except:
 			print "TempOut: x",
 		try:
-			print "HumIn: {0:0.0f}%".format(readings['hum_in'][0]),
+			print "HumIn: {0:0.0f}%".format(readings[config.get('PYWWS','HUM_IN_CHANNEL')][0]),
 		except:
 			print "HumIn: x",
 		try:
-			print "HumOut: {0:0.0f}%".format(readings['hum_out'][0]),
+			print "HumOut: {0:0.0f}%".format(readings[config.get('PYWWS','HUM_OUT_CHANNEL')][0]),
 		except:
 			print "HumOut: x",
 		try:
-			print "Press: {0:0.0f}hPa".format(readings['abs_pressure'][0]),
+			print "Press: {0:0.0f}hPa".format(readings[config.get('PYWWS','ABS_PRESSURE_CHANNEL')][0]),
 		except:
 			print "Press: x",
 		try:
-			print "Illum: {0:0.1f}".format(readings['illuminance'][0]),
+			print "Illum: {0:0.1f}".format(readings[config.get('PYWWS','ILLUMINANCE_CHANNEL')][0]),
 		except:
 			print "Illum: x",
 		try:
-			print "IRLx: {0:0.1f}".format(readings['ir'][0]),
+			print "IRLx: {0:0.1f}".format(readings[config.get('PYWWS','IR_CHANNEL')][0]),
 		except:
 			print "IRLx: x",
 		try:
-			print "UV: {0:0.1f}".format(readings['uv'][0]),
+			print "UV: {0:0.1f}".format(readings[config.get('PYWWS','UV_CHANNEL')][0]),
 		except:
 			print "UV: x",
-	try:
-		print "Forecast: %s" % forecast,
-	except:
-		print "Forecast: x",
+		try:
+			print "Forecast: %s" % forecast,
+		except:
+			print "Forecast: x",
 	print
 	Log(LOG_LEVEL.DEBUG,"WriteConsole: Complete")
 
@@ -385,7 +395,7 @@ def WriteSenseHat():
 	else:
 		forecast_toggle = 1
 		try:
-			msg = "Ti:{0:0.1f} To:{1:0.1f} P:{2:0.0f} H:{3:0.0f}%".format(readings['temp_in'][0],readings['temp_out'][0],readings['abs_pressure'][0],readings['hum_in'][0])
+			msg = "Ti:{0:0.1f} To:{1:0.1f} P:{2:0.0f} H:{3:0.0f}%".format(readings[config.get('PYWWS','TEMP_IN_CHANNEL')][0],readings[config.get('PYWWS','TEMP_OUT_CHANNEL')][0],readings[config.get('PYWWS','ABS_PRESSURE_CHANNEL')][0],readings[config.get('PYWWS','HUM_IN_CHANNEL')][0])
 		except:
 			msg = "Awaiting data"
 	hour = datetime.now().hour

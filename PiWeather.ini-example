@@ -1,45 +1,60 @@
 [Adafruit_LCD]
 LCD_WIDTH = 16
+UV_CHANNEL = light/uv/outside
+
+[BME280]
+HUMIDITY_CHANNEL = humidity/channelname
+PRESSURE_CHANNEL = pressure/channelname
+TEMPERATURE_CHANNEL = temperature/channelname
+
+[BMP085]
+HUMIDITY_CHANNEL = humidity/channelname
+PRESSURE_CHANNEL = pressure/channelname
 
 [Calibration]
-ALTITUDE=195
-BMP085_PRESSURE=0
-BMP085_TEMP_IN=0
-BME280_PRESSURE=0
-BME280_TEMP_IN=0
-BME280_HUM_IN=0
-SENSEHAT_HUM_IN=0
-SENSEHAT_PRESSURE=0
+ALTITUDE=123
+BMP085_PRESSURE=0.0
+BMP085_TEMP_IN=0.0
+BME280_PRESSURE=0.0
+BME280_TEMP_IN=0.0
+BME280_HUM_IN=0.0
+SENSEHAT_HUM_IN=0.0
+SENSEHAT_PRESSURE=0.0
 SENSEHAT_TEMP_IN=-2.4
 SENSEHAT_TEMP_OUT=-3.2
 # https://www.adafruit.com/datasheets/Si1145-46-47.pdf
 # Apparently all come with +256 offset
-SI1145_VISIBLE=-256
+SI1145_VISIBLE=-256.0
 # Sunlight = 0.282; 2500K Incandescent = 0.319; "Cool white" flourescent = 0.146
 # At gain 0, in High Signal Range mode "High Signal Range (Gain divided by 14.5)"
-SI1145_VISIBLE_RESPONSE=(0.282 / 14.5)
+# (0.282 / 14.5)
+SI1145_VISIBLE_RESPONSE=0.019448275862069
 # Apparently all come with +256 offset
-SI1145_IR=-236
+SI1145_IR=-236.0
 # Sunlight = 2.44; 2500K Incandescent=8.46; "Cool white" flourescent=0.71
 # At gain 0, in High Signal Range mode "High Signal Range (Gain divided by 14.5)"
-SI1145_IR_RESPONSE=(2.44 / 14.5)
-SI1145_UV=0
+# (2.44 / 14.5)
+SI1145_IR_RESPONSE=0.168275862068966
+SI1145_UV=0.0
 # Estimated transmission of current glass covering
 SI1145_UV_RESPONSE=0.55
+
+[DewPoint]
+TEMPERATURE_CHANNEL = temperature/channelname
+HUMIDITY_CHANNEL = humidity/channelname
+DEWPOINT_CHANNEL = dewpoint/channelname
 
 [EnOcean]
 # Submit multiple times, to overcome SMOOTHING
 # EnOcean sensors send data very infrequently...
 # Should be a fraction of General->Smoothing
 ANTI_SMOOTHING = 10
-PORT = "/dev/ttyUSB0"
-# Map Sensor ID to Name
-# Sensor ID, in hex, with colons removed
-# e.g. 01:81:23:45 -> 01812345
-01812345 = room1
+PORT = /dev/ttyUSB0
+01812345 = channelname
 
 [ForecastFile]
 FILE = /opt/weather/minforecast.txt
+FORECAST_CHANNEL = forecasts/zambretti
 
 [General]
 DAWN = 6
@@ -47,11 +62,12 @@ DUSK = 19
 # None, Error, Info, Debug
 # 0     1      2     3
 LOG_LEVEL = 1
-MININT = -(sys.maxsize - 1)
+# -(sys.maxsize - 1)
+MININT = -9223372036854775806
 SMOOTHING = 30
 
 [MQTT]
-SERVER = hab1.internal
+SERVER = mqtt.server.name
 PORT = 1883
 CLIENTID = piweather
 PREFIX = /sensors/
@@ -67,11 +83,23 @@ MQTT_PUBLISH = True
 
 [PYWWS]
 STORAGE = /opt/weather/
+ABS_PRESSURE_CHANNEL = pressure/outside
+HUM_IN_CHANNEL = humidity/inside
+HUM_OUT_CHANNEL = humidity/outside
+ILLUMINANCE_CHANNEL = light/visible/outside
+RAIN_CHANNEL = rainfall/outside
+TEMP_IN_CHANNEL = temperature/inside
+TEMP_OUT_CHANNEL = temperature/outside
+UV_CHANNEL = light/uv/outside
+WIND_AVE_CHANNEL = wind/average/outside
+WIND_DIR_CHANNEL = wind/direction/outside
+WIND_GUST_CHANNEL = wind/gust/outside
 
 [Rates]
 ADALCD_OUTPUT_RATE = 15
 CONFIG_REFRESH_RATE = 300
 CONSOLE_OUTPUT_RATE = 60
+ENOCEAN_RATE = 10
 FLUSH_RATE = 180
 FORECASTFILE_REFRESH_RATE = 300
 MQTT_OUTPUT_RATE = 60
@@ -80,6 +108,9 @@ SENSEHAT_OUTPUT_RATE = 30
 STORE_RATE = 60
 
 [SenseHat]
+HUMIDITY_CHANNEL = humidity/channelname
+PRESSURE_CHANNEL = pressure/channelname
+TEMPERATURE_CHANNEL = temperature/channelname
 ROTATION = 90
 SCROLL = 0.09
 COLOUR_BG = True
@@ -100,6 +131,13 @@ COMFORT_HIGH = 28
 [Sensors]
 BMP085 = False
 BME280 = True
+DEWPOINT_CALC = True
+ENOCEAN = True
 FORECAST_FILE = True
 SENSEHAT = False
 SI1145 = True
+
+[SI1145]
+VISIBLE_CHANNEL = visible/channelname
+IR_CHANNEL = ir/channelname
+UV_CHANNEL = uv/channelname
