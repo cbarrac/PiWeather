@@ -166,6 +166,11 @@ def ReadConfig():
 	global config
 	lconfig = configparser.ConfigParser()
 	lconfig.read(CONFIG_FILE)
+	try:
+		lconfig.get('Calibration','ALTITUDE_PRESSURE_OFFSET',1)
+	except:
+		PressureOffset = AltitudeOffset(lconfig.getint('Calibration','ALTITUDE'))
+		lconfig.set('Calibration','ALTITUDE_PRESSURE_OFFSET', PressureOffset)
 	config = lconfig
 
 def RelToAbsHumidity(relativeHumidity, temperature):
@@ -482,12 +487,6 @@ if config.getboolean('Output','SENSEHAT_DISPLAY'):
 	# Set up display
 	PiSenseHat.clear()
 	PiSenseHat.set_rotation(config.get('SenseHat','ROTATION'))
-try:
-	config.get('Calibration','ALTITUDE_PRESSURE_OFFSET',1)
-except:
-	PressureOffset = AltitudeOffset(config.getint('Calibration','ALTITUDE'))
-	Log(LOG_LEVEL.INFO,"PressureOffset: {}".format(PressureOffset))
-	config.set('Calibration','ALTITUDE_PRESSURE_OFFSET', PressureOffset)
 if config.getboolean('Sensors','ENOCEAN'):
 	eoCommunicator = eoSerialCommunicator(port=config.get('EnOcean','PORT'))
 	eoCommunicator.start()
