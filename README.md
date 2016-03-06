@@ -7,9 +7,9 @@ Process the data with pywws...
 
 Read the forecast back from pywws
 
-Read the forecast from Australia's BoM
+Read the forecast from Australia's [BoM](http://www.bom.gov.au)
 
-Output to MQTT (Useful for things like OpenHAB integration)
+Output to [MQTT](http://mqtt.org) (Useful for things like [OpenHAB](http://www.openhab.org) integration)
 
 Output to a local LCD display
 
@@ -18,13 +18,14 @@ I've stopped work on the PiSense parts of this project, as the readings I'm gett
 
 ## Sensors
 * Raspberry Pi SenseHat - not recommended
-* Adafruit BME280 - Temperature, Pressure, Humidity
-* Adafruit SI1124 - Light, UV
-* Adafruit BMP085 - Temperature, Pressure
+* [Adafruit BME280](https://www.adafruit.com/products/2652) - Temperature, Pressure, Humidity
+* [Adafruit SI1145](https://www.adafruit.com/products/1777) - Light, UV
+* [Adafruit BMP085](https://www.adafruit.com/products/391) - Temperature, Pressure (Discontinued - replaced by BMP180)
+* [Adafruit BMP180](https://www.adafruit.com/products/1603) _Should_ work - Temperature, Pressure
 * EnOcean - Only Temperature sensors are decoded at the moment.
 
 ## Displays
-* Adafruit 16x2 RGB LCD Display (on an Adafruit Pi Plate - providing an i2c interface)
+* [Adafruit 16x2 RGB LCD Display Positive](https://www.adafruit.com/products/1109) and [Negative](https://www.adafruit.com/products/1110) (on an Adafruit Pi Plate - providing an i2c interface)
 * Raspberry Pi SenseHat
 
 ## Reading data
