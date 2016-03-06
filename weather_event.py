@@ -108,7 +108,7 @@ def ForecastBoM():
 			max_temp = area._children[0]._children[1].text
 			forecast_text = area._children[0]._children[2].text
 			rain_chance = area._children[0]._children[3].text
-			forecast_bom_today = "{0} Max {1} Rain {2}".format(forecast_text,max_temp, rain_chance)
+			forecast_bom_today = "{0}Max {1} {2}".format(forecast_text,max_temp, rain_chance)
 			Log(LOG_LEVEL.INFO, "ForecastBoM: Today:" + forecast_bom_today)
 			try:
 				channel = config.get('BoM','FORECAST_CHANNEL_TODAY')
@@ -121,7 +121,7 @@ def ForecastBoM():
 			max_temp = area._children[1]._children[3].text
 			forecast_text = area._children[1]._children[4].text
 			rain_chance = area._children[1]._children[5].text
-			forecast_bom_tomorrow = "{0} {1}-{2} Rain {3}".format(forecast_text,min_temp, max_temp, rain_chance)
+			forecast_bom_tomorrow = "{0}{1}-{2} {3}".format(forecast_text,min_temp, max_temp, rain_chance)
 			Log(LOG_LEVEL.INFO, "ForecastBoM: Tomorrow:" + forecast_bom_tomorrow)
 			try:
 				channel = config.get('BoM','FORECAST_CHANNEL_TOMORROW')
