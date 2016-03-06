@@ -302,11 +302,11 @@ def WriteAdaLcd():
 	global AdaScreenNumber
 	try:
 		if AdaScreenNumber == 0:
-			msg = "{0:0.1f}C {1:0.0f}% UV{2:0.1f}\n{3:0.1f}hPa".format(readings[config.get('PYWWS','TEMP_IN_CHANNEL')][0],readings[config.get('PYWWS','HUM_IN_CHANNEL')][0],readings[config.get('PYWWS','UV_CHANNEL')][0],readings[config.get('PYWWS','ABS_PRESSURE_CHANNEL')][0])
 			AdaScreenNumber = 1
+			msg = "{0:0.1f}C {1:0.0f}% UV{2:0.1f}\n{3:0.1f}hPa".format(readings[config.get('PYWWS','TEMP_IN_CHANNEL')][0],readings[config.get('PYWWS','HUM_IN_CHANNEL')][0],readings[config.get('PYWWS','UV_CHANNEL')][0],readings[config.get('PYWWS','ABS_PRESSURE_CHANNEL')][0])
 		elif AdaScreenNumber == 1:
-			msg = FormatDisplay(forecast, config.getint('Adafruit_LCD','LCD_WIDTH'))
 			AdaScreenNumber = 0
+			msg = FormatDisplay(forecast, config.getint('Adafruit_LCD','LCD_WIDTH'))
 		else:
 			msg = "No message"
 			AdaScreenNumber = 0
@@ -321,19 +321,19 @@ def WriteAdaLcd():
 		uv = readings[config.get('Adafruit_LCD','UV_CHANNEL')][0]
 		if uv < 3.0:
 			# Low
-			AdaLcd.set_color(0.3,1.0,0.3)	#rgb(64,255,64)
+			AdaLcd.set_color(0.0,1.0,0.0)	#rgb(0,255,0)
 		elif uv < 6.0:
 			# Moderate
-			AdaLcd.set_color(1.0,1.0,0.3)	#rgb(255,255,64)
+			AdaLcd.set_color(1.0,1.0,0.2)	#rgb(255,255,64)
 		elif uv < 6.0:
 			# High
-			AdaLcd.set_color(1.0,0.5,0.3)	#rgb(255,128,64)
+			AdaLcd.set_color(1.0,0.5,0.2)	#rgb(255,128,64)
 		elif uv < 11.0:
 			# Very High
-			AdaLcd.set_color(1.0,0.3,0.3)	#rgb(255,64,64)
+			AdaLcd.set_color(1.0,0.2,0.2)	#rgb(255,64,64)
 		else:
 			# Extreme
-			AdaLcd.set_color(1.0,0.3,1.0)	#rgb(255,64,255)
+			AdaLcd.set_color(1.0,0.2,1.0)	#rgb(255,64,255)
 	except:
 		Log(LOG_LEVEL.ERROR,"WriteAdaLcd: Error setting backlight" + traceback.format_exc())
 	try:
