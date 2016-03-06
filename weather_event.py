@@ -78,24 +78,78 @@ def Flush(ds,dstatus):
 		Log(LOG_LEVEL.ERROR,"Flush: error in flush" + traceback.format_exc())
 	Log(LOG_LEVEL.DEBUG,"Flush: Complete")
 
-def ForecastRefresh():
-	Log(LOG_LEVEL.DEBUG,"ForecastRefresh: start")
-	global forecast
-	forecast_file = config.get('ForecastFile','FILE')
+def ForecastBoM():
+	Log(LOG_LEVEL.DEBUG,"ForecastBoM: start")
+	FORECAST_BASE_URL = config.get('BoM','FORECAST_BASE_URL')
+	FORECAST_STATE_ID = config.get('BoM','FORECAST_STATE_ID')
+	FORECAST_AAC = config.get('BoM','FORECAST_AAC')
+	Forecast_URL = FORECAST_BASE_URL + FORECAST_STATE_ID + '.xml'
+	Log(LOG_LEVEL.DEBUG,"ForecastBoM: Connecting to " + Forecast_URL)
+	global forecast_bom_today
+	global forecast_bom_tomorrow
 	try:
-		with open(forecast_file) as f:
-			forecast = f.read()
+		response = urllib2.urlopen(Forecast_URL)
+		ForecastXML = response.read()
 	except:
-		Log(LOG_LEVEL.ERROR,"ForecastRefresh: Error reading forecast from file" + traceback.format_exc())
+		Log(LOG_LEVEL.ERROR, "ForecastBoM: Error downloading forecast file:" + traceback.format_exc())
+		return
+	try:
+		ForecastTree = ElementTree.fromstring(ForecastXML)
+	except:
+		Log(LOG_LEVEL.ERROR, "ForecastBoM: Error parsing forecast file:" + traceback.format_exc())
+		return
+	try:
+		Forecasts = ForecastTree.find('forecast')
+	except:
+		Log(LOG_LEVEL.ERROR, "ForecastBoM: Error finding forecast element:" + traceback.format_exc())
+		return
+	for area in Forecasts:
+	    if area.attrib['aac'] == FORECAST_AAC:
+			max_temp = area._children[0]._children[1].text
+			forecast_text = area._children[0]._children[2].text
+			rain_chance = area._children[0]._children[3].text
+			forecast_bom_today = "{0} Max {1} Rain {2}".format(forecast_text,max_temp, rain_chance)
+			Log(LOG_LEVEL.INFO, "ForecastBoM: Today:" + forecast_bom_today)
+			try:
+				channel = config.get('BoM','FORECAST_CHANNEL_TODAY')
+				if readings.get(channel,None) is None:
+					readings[channel] = [0]
+				readings[channel][0] = forecast_bom_today
+			except:
+				Log(LOG_LEVEL.ERROR,"ForecastBoM: Could not populate today forecast to memory store" + traceback.format_exc())
+			min_temp = area._children[1]._children[2].text
+			max_temp = area._children[1]._children[3].text
+			forecast_text = area._children[1]._children[4].text
+			rain_chance = area._children[1]._children[5].text
+			forecast_bom_tomorrow = "{0} {1}-{2} Rain {3}".format(forecast_text,min_temp, max_temp, rain_chance)
+			Log(LOG_LEVEL.INFO, "ForecastBoM: Tomorrow:" + forecast_bom_tomorrow)
+			try:
+				channel = config.get('BoM','FORECAST_CHANNEL_TOMORROW')
+				if readings.get(channel,None) is None:
+					readings[channel] = [0]
+				readings[channel][0] = forecast_bom_tomorrow
+			except:
+				Log(LOG_LEVEL.ERROR,"ForecastBoM: Could not populate tomorrow forecast to memory store" + traceback.format_exc())
+			return (forecast_bom_today, forecast_bom_tomorrow)
+
+def ForecastFile():
+	Log(LOG_LEVEL.DEBUG,"ForecastFile: start")
+	global forecast_file_today
+	forecast_filename = config.get('ForecastFile','FILE')
+	try:
+		with open(forecast_filename) as f:
+			forecast_file_today = f.read()
+	except:
+		Log(LOG_LEVEL.ERROR,"ForecastFile: Error reading forecast from file" + traceback.format_exc())
 	try:
 		channel = config.get('ForecastFile','FORECAST_CHANNEL')
 		if readings.get(channel,None) is None:
 			readings[channel] = [0]
-		readings[channel][0] = forecast
+		readings[channel][0] = forecast_file_today
 	except:
-		Log(LOG_LEVEL.ERROR,"ForecastRefresh: Could not populate forecast to memory store" + traceback.format_exc())
-	Log(LOG_LEVEL.INFO,"ForecastRefresh: \"%s\"" % forecast)
-	Log(LOG_LEVEL.DEBUG,"ForecastRefresh: Complete")
+		Log(LOG_LEVEL.ERROR,"ForecastFile: Could not populate forecast to memory store" + traceback.format_exc())
+	Log(LOG_LEVEL.INFO,"ForecastFile: \"%s\"" % forecast_file_today)
+	Log(LOG_LEVEL.DEBUG,"ForecastFile: Complete")
 
 def FormatDisplay(input,max_length):
     input_len = len(input)
@@ -300,19 +354,30 @@ def Store(ds):
 
 def WriteAdaLcd():
 	global AdaScreenNumber
-	try:
-		if AdaScreenNumber == 0:
-			AdaScreenNumber = 1
-			msg = "{0:0.1f}C {1:0.0f}% UV{2:0.1f}\n{3:0.1f}hPa".format(readings[config.get('PYWWS','TEMP_IN_CHANNEL')][0],readings[config.get('PYWWS','HUM_IN_CHANNEL')][0],readings[config.get('PYWWS','UV_CHANNEL')][0],readings[config.get('PYWWS','ABS_PRESSURE_CHANNEL')][0])
-		elif AdaScreenNumber == 1:
-			AdaScreenNumber = 0
-			msg = FormatDisplay(forecast, config.getint('Adafruit_LCD','LCD_WIDTH'))
-		else:
-			msg = "No message"
-			AdaScreenNumber = 0
-	except:
-		Log(LOG_LEVEL.ERROR,"WriteAdaLcd: Error creating message" + traceback.format_exc())
-		msg = "Data Error"
+	msg_success = False
+	while (not msg_success):
+		try:
+			if AdaScreenNumber == 0:
+				AdaScreenNumber += 1
+				msg = "{0:0.1f}C {1:0.0f}% UV{2:0.1f}\n{3:0.1f}hPa".format(readings[config.get('PYWWS','TEMP_IN_CHANNEL')][0],readings[config.get('PYWWS','HUM_IN_CHANNEL')][0],readings[config.get('PYWWS','UV_CHANNEL')][0],readings[config.get('PYWWS','ABS_PRESSURE_CHANNEL')][0])
+				msg_success = True
+			elif AdaScreenNumber == 1:
+				AdaScreenNumber += 1
+				msg = FormatDisplay("Z:" + forecast_file_today, config.getint('Adafruit_LCD','LCD_WIDTH'))
+				msg_success = True
+			elif AdaScreenNumber == 2:
+				AdaScreenNumber += 1
+				msg = FormatDisplay("BoM:" + forecast_bom_today, config.getint('Adafruit_LCD','LCD_WIDTH'))
+				msg_success = True
+			elif AdaScreenNumber == 3:
+				AdaScreenNumber += 1
+				msg = FormatDisplay("Tmw:" + forecast_bom_tomorrow, config.getint('Adafruit_LCD','LCD_WIDTH'))
+				msg_success = True
+			else:
+				AdaScreenNumber = 0
+		except:
+			Log(LOG_LEVEL.ERROR,"WriteAdaLcd: Error creating message" + traceback.format_exc())
+			msg = "Data Error"
 	try:
 		AdaLcd.clear()
 	except:
@@ -385,7 +450,7 @@ def WriteConsole():
 		except:
 			print "UV: x",
 		try:
-			print "Forecast: %s" % forecast,
+			print "Forecast: %s" % forecast_file_today,
 		except:
 			print "Forecast: x",
 	print
@@ -394,9 +459,9 @@ def WriteConsole():
 def WriteSenseHat():
 	Log(LOG_LEVEL.DEBUG,"WriteSenseHat: start")
 	global forecast_toggle
-	if config.getint('Rates','FORECAST_REFRESH_RATE') > 0 and forecast_toggle == 1 and forecast:
+	if config.getint('Rates','FORECAST_REFRESH_RATE') > 0 and forecast_toggle == 1 and forecast_file_today:
 		forecast_toggle = 0
-		msg = forecast
+		msg = forecast_file_today
 	else:
 		forecast_toggle = 1
 		try:
@@ -456,6 +521,9 @@ if config.getboolean('Sensors','ENOCEAN'):
 		import queue
 	except ImportError:
 		import Queue as queue
+if config.getboolean('Sensors','FORECAST_BOM'):
+	import urllib2
+	import xml.etree.ElementTree as ElementTree
 if config.getboolean('Output','MQTT_PUBLISH'):
 	import paho.mqtt.publish as publish
 if config.getboolean('Output','PYWWS_PUBLISH'):
@@ -473,7 +541,9 @@ if config.getboolean('Sensors','SI1145'):
 # Global Variables
 AdaScreenNumber = 0
 data = {}
-forecast = ""
+forecast_bom_today = ""
+forecast_bom_tomorrow = ""
+forecast_file_today = ""
 forecast_toggle = 0
 global_init=True
 readings = {}
@@ -496,7 +566,10 @@ for i in range(1,6):
 	Sample()
 	time.sleep(1)
 global_init=False
-ForecastRefresh()
+if config.getboolean('Sensors','FORECAST_BOM'):
+	ForecastBoM()
+if config.getboolean('Sensors','FORECAST_FILE'):
+	ForecastFile()
 Sample()
 print "Scheduling events..."
 scheduler = BackgroundScheduler()
@@ -504,8 +577,10 @@ scheduler.add_job(ReadConfig, 'interval', seconds=config.getint('Rates', 'CONFIG
 scheduler.add_job(Sample, 'interval', seconds=config.getint('Rates','SAMPLE_RATE'), id='Sample')
 if config.getboolean('Sensors','ENOCEAN'):
 	scheduler.add_job(EnOceanSensors, 'interval', seconds=config.getint('Rates','ENOCEAN_RATE'), id='EnOcean')
+if config.getboolean('Sensors','FORECAST_BOM'):
+	scheduler.add_job(ForecastBoM, 'interval', seconds=config.getint('Rates','FORECASTBOM_REFRESH_RATE'), id='ForecastBoM')
 if config.getboolean('Sensors','FORECAST_FILE'):
-	scheduler.add_job(ForecastRefresh, 'interval', seconds=config.getint('Rates','FORECASTFILE_REFRESH_RATE'), id='Forecast')
+	scheduler.add_job(ForecastFile, 'interval', seconds=config.getint('Rates','FORECASTFILE_REFRESH_RATE'), id='ForecastFile')
 if config.getboolean('Output','ADA_LCD'):
 	scheduler.add_job(WriteAdaLcd, 'interval', seconds=config.getint('Rates','ADALCD_OUTPUT_RATE'), id='AdaLcd')
 if config.getboolean('Output','CONSOLE_OUTPUT'):
