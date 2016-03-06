@@ -5,8 +5,16 @@ Write the data to a [pywws](https://github.com/jim-easterbrook/pywws) DataStore
 
 Process the data with pywws...
 
+Read the forecast back from pywws
+
+Read the forecast from Australia's BoM
+
+Output to MQTT (Useful for things like OpenHAB integration)
+
+Output to a local LCD display
+
 ## Warning
-I've stopped work on the PiSense parts of this project, as the readings I'm getting from the SenseHat seem way out. The Temperature inputs are impacted significantly by heat coming from the Raspberry Pi. Double-stacking the headers, using a heat-shield, turning off the display, moving USB wifi away on a cable... none of them work. Humidity is also very bad - 69% when it's raining?! (Government weather station just down the road said > 90%)
+I've stopped work on the PiSense parts of this project, as the readings I'm getting from the SenseHat seem way out. The Temperature inputs are impacted significantly by heat coming from the Raspberry Pi. Double-stacking the headers, using a heat-shield, turning off the display, moving USB wifi away on a cable... none of them work. Relative Humidity is also very bad - 69% when it's raining?! (Government weather station just down the road said > 90%)
 
 ## Sensors
 * Raspberry Pi SenseHat - not recommended
@@ -58,3 +66,7 @@ Channel names for recording the data (e.g. for pushing to MQTT) are stored in
 the configuration file. Each sensor has an entry with its hexadecimal address
 and a name. e.g. `01812345 = room1`, would mean an sensor with address
 `01:81:23:45` would be stored as `room1`
+
+### BoM
+Find your state [here](http://www.bom.gov.au/info/precis_forecasts.shtml), it will look something like `IDV10753`
+Have a look inside the XML, and find your nearest BoM forecast area, it will look something like `VIC_PT042`
