@@ -1,5 +1,6 @@
 [Adafruit_LCD]
 LCD_WIDTH = 16
+LCD_HEIGHT = 2
 UV_CHANNEL = light/uv/outside
 
 [BME280]
@@ -21,6 +22,7 @@ FORECAST_STATE_ID = IDV10753
 FORECAST_AAC = VIC_PT042
 FORECAST_CHANNEL_TODAY = forecast/bom/today
 FORECAST_CHANNEL_TOMORROW = forecast/bom/tomorrow
+FORECAST_CHANNEL_DAYAFTER = forecast/bom/dayafter
 
 [Calibration]
 ALTITUDE=123

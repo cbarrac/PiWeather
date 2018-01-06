@@ -32,6 +32,17 @@ def AltitudeOffset(Altitude):
 	s = 101325 * math.pow (1,5.25588)
 	return (s - p) / 100
 
+def BootMessage(msg):
+	print msg
+	if config.getboolean('Output','ADA_LCD'):
+		try:
+			AdaLcd.clear()
+			AdaLcd.set_color(0.5,0.5,0.5)
+			msg = FormatDisplay(msg, config.getint('Adafruit_LCD','LCD_WIDTH'), config.getint('Adafruit_LCD','LCD_HEIGHT'))
+			AdaLcd.message(msg)
+		except:
+			print "Could not write to LCD"
+
 def DewPoint(RH,TempC):
 	Log(LOG_LEVEL.INFO,"DewPoint: Calculating for RH:{0:.1f} and Temp: {1:.1f}".format(RH,TempC))
 	# Paroscientific constants (0 <> 60 degc, 0 <> 100% RH)
@@ -43,12 +54,26 @@ def DewPoint(RH,TempC):
 	Log(LOG_LEVEL.INFO,"DewPoint is {0:.1f}".format(dp))
 	return dp
 
-def EnOceanSensors():
+def EnOceanSensors(eoCommunicator):
+	Log(LOG_LEVEL.DEBUG,"EnOceanSensors: Begin")
+	try:
+		Log(LOG_LEVEL.DEBUG,"EnOceanSensors: Alive: " + str(eoCommunicator.is_alive()))
+	except Exception:
+		Log(LOG_LEVEL.ERROR,"EnOceanSensors: Error in communications" + traceback.format_exc())
+	if not eoCommunicator.is_alive():
+		try:
+			eoCommunicator = eoSerialCommunicator(port=config.get('EnOcean','PORT'))
+			eoCommunicator.start()
+			Log(LOG_LEVEL.INFO,"EnOceanSensors: Re-opened communications on port " + config.get('EnOcean','PORT'))
+		except Exception:
+			Log(LOG_LEVEL.ERROR,"EnOceanSensors: Error in communications" + traceback.format_exc())
 	while eoCommunicator.is_alive():
 		try:
 			# Loop to empty the queue...
+			Log(LOG_LEVEL.DEBUG,"EnOceanSensors: Receive Loop")
 			packet = eoCommunicator.receive.get(block=False)
-			if packet.type == EOPACKET.RADIO and packet.rorg == EORORG.BS4:
+			Log(LOG_LEVEL.DEBUG,"EnOceanSensors: Packet received")
+			if packet.packet_type == EOPACKET.RADIO and packet.rorg == EORORG.BS4:
 				# parse packet with given FUNC and TYPE
 				for k in packet.parse_eep(0x02, 0x05):
 					temp = packet.parsed[k]['value']
@@ -87,6 +112,7 @@ def ForecastBoM():
 	Log(LOG_LEVEL.DEBUG,"ForecastBoM: Connecting to " + Forecast_URL)
 	global forecast_bom_today
 	global forecast_bom_tomorrow
+	global forecast_bom_dayafter
 	try:
 		response = urllib2.urlopen(Forecast_URL)
 		ForecastXML = response.read()
@@ -104,11 +130,21 @@ def ForecastBoM():
 		Log(LOG_LEVEL.ERROR, "ForecastBoM: Error finding forecast element:" + traceback.format_exc())
 		return
 	for area in Forecasts:
-	    if area.attrib['aac'] == FORECAST_AAC:
-			max_temp = area._children[0]._children[1].text
-			forecast_text = area._children[0]._children[2].text
-			rain_chance = area._children[0]._children[3].text
-			forecast_bom_today = "{0}Max {1} {2}".format(forecast_text,max_temp, rain_chance)
+		if area.attrib['aac'] == FORECAST_AAC:
+			# Today
+			try:
+				max_temp = area._children[0].find("*[@type='air_temperature_maximum']").text
+			except:
+				max_temp = "_"
+			try:
+				forecast_text = area._children[0].find("*[@type='precis']").text
+			except:
+				forecast_text = "_"
+			try:
+				rain_chance = area._children[0].find("*[@type='probability_of_precipitation']").text
+			except:
+				rain_chance = "_"
+			forecast_bom_today = "Max {0} {1} {2}".format(max_temp, rain_chance, forecast_text)
 			Log(LOG_LEVEL.INFO, "ForecastBoM: Today:" + forecast_bom_today)
 			try:
 				channel = config.get('BoM','FORECAST_CHANNEL_TODAY')
@@ -117,11 +153,24 @@ def ForecastBoM():
 				readings[channel][0] = forecast_bom_today
 			except:
 				Log(LOG_LEVEL.ERROR,"ForecastBoM: Could not populate today forecast to memory store" + traceback.format_exc())
-			min_temp = area._children[1]._children[2].text
-			max_temp = area._children[1]._children[3].text
-			forecast_text = area._children[1]._children[4].text
-			rain_chance = area._children[1]._children[5].text
-			forecast_bom_tomorrow = "{0}{1}-{2} {3}".format(forecast_text,min_temp, max_temp, rain_chance)
+			# Tomorrow
+			try:
+				min_temp = area._children[1].find("*[@type='air_temperature_minimum']").text
+			except:
+				min_temp = "_"
+			try:
+				max_temp = area._children[1].find("*[@type='air_temperature_maximum']").text
+			except:
+				max_temp = "_"
+			try:
+				forecast_text = area._children[1].find("*[@type='precis']").text
+			except:
+				forecast_text = "_"
+			try:
+				rain_chance = area._children[1].find("*[@type='probability_of_precipitation']").text
+			except:
+				rain_chance = "_"
+			forecast_bom_tomorrow = "{0}-{1} {2} {3}".format(min_temp, max_temp, rain_chance, forecast_text)
 			Log(LOG_LEVEL.INFO, "ForecastBoM: Tomorrow:" + forecast_bom_tomorrow)
 			try:
 				channel = config.get('BoM','FORECAST_CHANNEL_TOMORROW')
@@ -130,7 +179,33 @@ def ForecastBoM():
 				readings[channel][0] = forecast_bom_tomorrow
 			except:
 				Log(LOG_LEVEL.ERROR,"ForecastBoM: Could not populate tomorrow forecast to memory store" + traceback.format_exc())
-			return (forecast_bom_today, forecast_bom_tomorrow)
+			# Day after tomorrow
+			try:
+				min_temp = area._children[2].find("*[@type='air_temperature_minimum']").text
+			except:
+				min_temp = "_"
+			try:
+				max_temp = area._children[2].find("*[@type='air_temperature_maximum']").text
+			except:
+				max_temp = "_"
+			try:
+				forecast_text = area._children[2].find("*[@type='precis']").text
+			except:
+				forecast_text = "_"
+			try:
+				rain_chance = area._children[2].find("*[@type='probability_of_precipitation']").text
+			except:
+				rain_chance = "_"
+			forecast_bom_dayafter = "{0}-{1} {2} {3}".format(min_temp, max_temp, rain_chance, forecast_text)
+			Log(LOG_LEVEL.INFO, "ForecastBoM: Day After Tomorrow:" + forecast_bom_dayafter)
+			try:
+				channel = config.get('BoM','FORECAST_CHANNEL_DAYAFTER')
+				if readings.get(channel,None) is None:
+					readings[channel] = [0]
+				readings[channel][0] = forecast_bom_dayafter
+			except:
+				Log(LOG_LEVEL.ERROR,"ForecastBoM: Could not populate day after tomorrow forecast to memory store" + traceback.format_exc())
+			return (forecast_bom_today, forecast_bom_tomorrow,forecast_bom_dayafter)
 
 def ForecastFile():
 	Log(LOG_LEVEL.DEBUG,"ForecastFile: start")
@@ -151,7 +226,7 @@ def ForecastFile():
 	Log(LOG_LEVEL.INFO,"ForecastFile: \"%s\"" % forecast_file_today)
 	Log(LOG_LEVEL.DEBUG,"ForecastFile: Complete")
 
-def FormatDisplay(input,max_length):
+def FormatDisplay(input,max_length,max_height):
     input_len = len(input)
     if (input_len < max_length):
         return input
@@ -159,14 +234,20 @@ def FormatDisplay(input,max_length):
         words = input.split()
         display = ""
         length = 0
+        height = 1
         for word in words:
             len_word = len(word)
-            if (length + len_word) < max_length:
+            if (length + len_word) <= max_length:
                 display = display + word + " "
                 length = length + len_word + 1
+            elif (height == max_height):
+                trunc = max_length - length
+                display = display + word [0:trunc]
+                return display
             else:
                 display = display + "\n" + word + " "
                 length = len_word + 1
+                height = height + 1
         return display
 
 def Log(level,message):
@@ -274,7 +355,7 @@ def Sample():
 	Log(LOG_LEVEL.DEBUG,"Sample: Complete")
 
 def Smoothing(channel, value):
-	Log(LOG_LEVEL.DEBUG,"Smoothing: Begin")
+	Log(LOG_LEVEL.DEBUG,"Smoothing: " + channel)
 	if global_init:
 		Log(LOG_LEVEL.DEBUG,"Init Mode: returning with no storage")
 		return
@@ -292,8 +373,8 @@ def Smoothing(channel, value):
 	average += value
 	average = average / config.getint('General','SMOOTHING')
 	readings[channel][0] = average
-	Log(LOG_LEVEL.DEBUG,"Smoothing: Readings[%s]: %s" % (channel, readings[channel]))
-	Log(LOG_LEVEL.DEBUG,"Smoothing: Complete")
+	# Log(LOG_LEVEL.DEBUG,"Smoothing: Readings[%s]: %s" % (channel, readings[channel]))
+	#Log(LOG_LEVEL.DEBUG,"Smoothing: Complete")
 
 def Store(ds):
 	Log(LOG_LEVEL.DEBUG,"Store: Write to data")
@@ -363,15 +444,20 @@ def WriteAdaLcd():
 				msg_success = True
 			elif AdaScreenNumber == 1:
 				AdaScreenNumber += 1
-				msg = FormatDisplay("Z:" + forecast_file_today, config.getint('Adafruit_LCD','LCD_WIDTH'))
-				msg_success = True
+				if config.getboolean('Sensors','FORECAST_FILE'):
+					msg = FormatDisplay("Z:" + forecast_file_today, config.getint('Adafruit_LCD','LCD_WIDTH'), config.getint('Adafruit_LCD','LCD_HEIGHT'))
+					msg_success = True
 			elif AdaScreenNumber == 2:
 				AdaScreenNumber += 1
-				msg = FormatDisplay("BoM:" + forecast_bom_today, config.getint('Adafruit_LCD','LCD_WIDTH'))
+				msg = FormatDisplay("BoM:" + forecast_bom_today, config.getint('Adafruit_LCD','LCD_WIDTH'), config.getint('Adafruit_LCD','LCD_HEIGHT'))
 				msg_success = True
 			elif AdaScreenNumber == 3:
 				AdaScreenNumber += 1
-				msg = FormatDisplay("Tmw:" + forecast_bom_tomorrow, config.getint('Adafruit_LCD','LCD_WIDTH'))
+				msg = FormatDisplay("Tmw:" + forecast_bom_tomorrow, config.getint('Adafruit_LCD','LCD_WIDTH'), config.getint('Adafruit_LCD','LCD_HEIGHT'))
+				msg_success = True
+			elif AdaScreenNumber == 4:
+				AdaScreenNumber += 1
+				msg = FormatDisplay("Nxt:" + forecast_bom_dayafter, config.getint('Adafruit_LCD','LCD_WIDTH'), config.getint('Adafruit_LCD','LCD_HEIGHT'))
 				msg_success = True
 			else:
 				AdaScreenNumber = 0
@@ -508,6 +594,7 @@ ReadConfig()
 if config.getboolean('Output','ADA_LCD'):
 	import Adafruit_CharLCD
 	AdaLcd = Adafruit_CharLCD.Adafruit_CharLCDPlate()
+	BootMessage("PiWeather Starting")
 if config.getboolean('Sensors','BME280'):
 	from Adafruit_BME280 import *
 	BmeSensor = BME280(mode=BME280_OSAMPLE_8)
@@ -517,6 +604,9 @@ if config.getboolean('Sensors','BMP085'):
 if config.getboolean('Sensors','ENOCEAN'):
 	from enocean.communicators.serialcommunicator import SerialCommunicator as eoSerialCommunicator
 	from enocean.protocol.constants import PACKET as EOPACKET, RORG as EORORG
+	import enocean.utils
+	if config.getint('General','LOG_LEVEL') >= LOG_LEVEL.DEBUG:
+		from enocean.consolelogger import init_logging
 	try:
 		import queue
 	except ImportError:
@@ -543,6 +633,7 @@ AdaScreenNumber = 0
 data = {}
 forecast_bom_today = ""
 forecast_bom_tomorrow = ""
+forecast_bom_dayafter = ""
 forecast_file_today = ""
 forecast_toggle = 0
 global_init=True
@@ -551,32 +642,39 @@ readings = {}
 if config.getboolean('Output','PYWWS_PUBLISH'):
 	ds = DataStore.data_store(config.get('PYWWS','STORAGE'))
 	dstatus = DataStore.status(config.get('PYWWS','STORAGE'))
-if config.getboolean('Output','ADA_LCD'):
-	AdaLcd.clear()
 if config.getboolean('Output','SENSEHAT_DISPLAY'):
 	# Set up display
 	PiSenseHat.clear()
 	PiSenseHat.set_rotation(config.get('SenseHat','ROTATION'))
 if config.getboolean('Sensors','ENOCEAN'):
+	if config.getint('General','LOG_LEVEL') >= LOG_LEVEL.DEBUG:
+		init_logging()
 	eoCommunicator = eoSerialCommunicator(port=config.get('EnOcean','PORT'))
 	eoCommunicator.start()
+	Log(LOG_LEVEL.INFO,"EnOceanSensors: Base ID: " + enocean.utils.to_hex_string(eoCommunicator.base_id) + " on port: " + config.get('EnOcean','PORT'))
 # Warm up sensors
-print "Waiting for sensors to settle"
+BootMessage("Waiting for sensors to settle")
 for i in range(1,6):
 	Sample()
 	time.sleep(1)
 global_init=False
 if config.getboolean('Sensors','FORECAST_BOM'):
-	ForecastBoM()
+	try:
+		ForecastBoM()
+	except Exception:
+		Log(LOG_LEVEL.ERROR,"ForecastBoM: Error in initial call" + traceback.format_exc())
 if config.getboolean('Sensors','FORECAST_FILE'):
-	ForecastFile()
+	try:
+		ForecastFile()
+	except Exception:
+		Log(LOG_LEVEL.ERROR,"ForecastBoM: Error in initial call" + traceback.format_exc())
 Sample()
-print "Scheduling events..."
+BootMessage("Scheduling events...")
 scheduler = BackgroundScheduler()
 scheduler.add_job(ReadConfig, 'interval', seconds=config.getint('Rates', 'CONFIG_REFRESH_RATE'), id='ReadConfig')
 scheduler.add_job(Sample, 'interval', seconds=config.getint('Rates','SAMPLE_RATE'), id='Sample')
 if config.getboolean('Sensors','ENOCEAN'):
-	scheduler.add_job(EnOceanSensors, 'interval', seconds=config.getint('Rates','ENOCEAN_RATE'), id='EnOcean')
+	scheduler.add_job(EnOceanSensors, 'interval', args=[eoCommunicator], seconds=config.getint('Rates','ENOCEAN_RATE'), id='EnOcean')
 if config.getboolean('Sensors','FORECAST_BOM'):
 	scheduler.add_job(ForecastBoM, 'interval', seconds=config.getint('Rates','FORECASTBOM_REFRESH_RATE'), id='ForecastBoM')
 if config.getboolean('Sensors','FORECAST_FILE'):
@@ -600,7 +698,7 @@ if config.getboolean('Output','CONSOLE_OUTPUT'):
 	WriteConsole()
 if config.getboolean('Output','MQTT_PUBLISH'):
 	MqSendMultiple()
-print "Entering event loop"
+BootMessage("Entering event loop")
 
 try:
 	# This is here to simulate application activity (which keeps the main thread alive).
@@ -608,7 +706,7 @@ try:
 		time.sleep(1)
 except (KeyboardInterrupt, SystemExit):
 	# Not strictly necessary if daemonic mode is enabled but should be done if possible
-	print "Shutting down scheduler"
+	BootMessage("Shutting down scheduler")
 	scheduler.shutdown()
 	if config.getboolean('Output','PYWWS_PUBLISH'):
 		print "Flushing data"
@@ -621,4 +719,4 @@ except (KeyboardInterrupt, SystemExit):
 	if config.getboolean('Sensors','ENOCEAN'):
 		if eoCommunicator.is_alive():
 			eoCommunicator.stop()
-	print "Goodbye"
+	BootMessage("Goodbye")
