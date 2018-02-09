@@ -625,7 +625,7 @@ if config.getboolean('Output', 'ADA_LCD'):
 	BootMessage("PiWeather Starting")
 if config.getboolean('Sensors', 'BME280'):
 	import Adafruit_BME280
-	BmeSensor = Adafruit_BME280.BME280(mode=Adafruit_BME280.BME280_OSAMPLE_8)
+	BmeSensor = Adafruit_BME280.BME280(t_mode=Adafruit_BME280.BME280_OSAMPLE_8, p_mode=Adafruit_BME280.BME280_OSAMPLE_8, h_mode=Adafruit_BME280.BME280_OSAMPLE_8)
 if config.getboolean('Sensors', 'BMP085'):
 	import Adafruit_BMP.BMP085
 	BmpSensor = Adafruit_BMP.BMP085()
