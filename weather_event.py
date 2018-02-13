@@ -79,7 +79,7 @@ def DewPoint(RH, TempC):
     return dp
 
 
-def EnOceanSensors(eoCommunicator):
+def EnOceanSensors(eoComms):
     """Read temperature from EnOcean wireless sensors."""
     Log(LOG_LEVEL.DEBUG, "EnOceanSensors: Begin")
     global EnOceanInvocationCounter
@@ -88,32 +88,32 @@ def EnOceanSensors(eoCommunicator):
         if EnOceanInvocationCounter > 1000:
             EnOceanInvocationCounter = 0
             try:
-                eoCommunicator.stop()
-                del eoCommunicator
-                eoCommunicator = eoSerialCommunicator(port=config.get('EnOcean', 'PORT'))
-                eoCommunicator.start()
+                eoComms.stop()
+                del eoComms
+                eoComms = eoSerialCommunicator(port=config.get('EnOcean', 'PORT'))
+                eoComms.start()
             except Exception:
                 Log(LOG_LEVEL.ERROR, "EnOceanSensors: Error in restarting communications" + traceback.format_exc())
         try:
-            Log(LOG_LEVEL.DEBUG, "EnOceanSensors: Alive: " + str(eoCommunicator.is_alive()))
+            Log(LOG_LEVEL.DEBUG, "EnOceanSensors: Alive: " + str(eoComms.is_alive()))
         except Exception:
             Log(LOG_LEVEL.ERROR, "EnOceanSensors: Error in communications" + traceback.format_exc())
-        if not eoCommunicator.is_alive():
+        if not eoComms.is_alive():
             try:
-                eoCommunicator.stop()
+                eoComms.stop()
             except Exception:
                 Log(LOG_LEVEL.ERROR, "EnOceanSensors: Error stopping communications" + traceback.format_exc())
             try:
-                eoCommunicator = eoSerialCommunicator(port=config.get('EnOcean', 'PORT'))
-                eoCommunicator.start()
+                eoComms = eoSerialCommunicator(port=config.get('EnOcean', 'PORT'))
+                eoComms.start()
                 Log(LOG_LEVEL.INFO, "EnOceanSensors: Re-opened communications on port " + config.get('EnOcean', 'PORT'))
             except Exception:
                 Log(LOG_LEVEL.ERROR, "EnOceanSensors: Error in communications" + traceback.format_exc())
-        while eoCommunicator.is_alive():
+        while eoComms.is_alive():
             try:
                 # Loop to empty the queue...
                 Log(LOG_LEVEL.DEBUG, "EnOceanSensors: Receive Loop")
-                packet = eoCommunicator.receive.get(block=False)
+                packet = eoComms.receive.get(block=False)
                 Log(LOG_LEVEL.DEBUG, "EnOceanSensors: Packet received")
                 if packet.packet_type == EOPACKET.RADIO and packet.rorg == EORORG.BS4:
                     # parse packet with given FUNC and TYPE
@@ -132,19 +132,19 @@ def EnOceanSensors(eoCommunicator):
                 Log(LOG_LEVEL.ERROR, "EnOceanSensors: Error in communications" + traceback.format_exc())
 
 
-def Flush(ds, dstatus):
+def Flush(datastore, datastatus):
     """Write out the pywws data store."""
-    Log(LOG_LEVEL.DEBUG, "Flush: ds")
-    ds.flush()
+    Log(LOG_LEVEL.DEBUG, "Flush: datastore")
+    datastore.flush()
     Log(LOG_LEVEL.DEBUG, "Flush: Write dstatus")
     try:
-        dstatus.set('last update', 'logged', datetime.utcnow().isoformat(' '))
-        dstatus.set('fixed', 'fixed block', str(readings))
+        datastatus.set('last update', 'logged', datetime.utcnow().isoformat(' '))
+        datastatus.set('fixed', 'fixed block', str(readings))
     except Exception:
         Log(LOG_LEVEL.ERROR, "Flush: Error setting status" + traceback.format_exc())
     Log(LOG_LEVEL.DEBUG, "Flush: dstatus")
     try:
-        dstatus.flush()
+        datastatus.flush()
     except Exception:
         Log(LOG_LEVEL.ERROR, "Flush: error in flush" + traceback.format_exc())
     Log(LOG_LEVEL.DEBUG, "Flush: Complete")
@@ -425,7 +425,7 @@ def Smoothing(channel, value):
     # Log(LOG_LEVEL.DEBUG,"Smoothing: Complete")
 
 
-def Store(ds):
+def Store(datastore):
     """Output data to the pywws store."""
     Log(LOG_LEVEL.DEBUG, "Store: Write to data")
     global data
@@ -476,9 +476,9 @@ def Store(ds):
         data['wind_gust'] = float(readings[config.get('PYWWS', 'WIND_GUST_CHANNEL')][0])
     except Exception:
         data['wind_gust'] = None
-    Log(LOG_LEVEL.DEBUG, "Store: Write to ds")
+    Log(LOG_LEVEL.DEBUG, "Store: Write to datastore")
     try:
-        ds[datetime.utcnow()] = data
+        datastore[datetime.utcnow()] = data
     except Exception:
         Log(LOG_LEVEL.ERROR, "Store: Error pushing data" + traceback.format_exc())
     Log(LOG_LEVEL.DEBUG, "Store: Complete")
