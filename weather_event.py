@@ -32,7 +32,6 @@ forecast_bom_dayafter = ""
 forecast_file_today = ""
 forecast_toggle = 0
 global_init = True
-mqtt_client = ""
 mutex = Lock()
 readings = {}
 #
@@ -321,24 +320,6 @@ def MapSensor(sensor_id):
         return sensor_id
 
 
-def MqClose():
-    """Stop connection to the MQTT server."""
-    global mqtt_client
-    Log(LOG_LEVEL.DEBUG, "MqClose: Stopping loop")
-    mqtt_client.loop_stop()
-    Log(LOG_LEVEL.DEBUG, "MqClose: Disconnecting")
-    mqtt_client.disconnect()
-    Log(LOG_LEVEL.DEBUG, "MqClose: Complete")
-
-
-def MqInit():
-    """Create a connection to the MQTT server."""
-    global mqtt_client
-    mqtt_client.connect(config.get('MQTT', 'SERVER'), config.getint('MQTT', 'PORT'), config.getint('MQTT', 'TIMEOUT'))
-    Log(LOG_LEVEL.DEBUG, "MqInit: Starting loop")
-    mqtt_client.loop_start()
-
-
 def MqSendMultiple():
     """Send multiple bits of data to the MQTT server."""
     Log(LOG_LEVEL.DEBUG, "MqSendMultiple: Build Message")
@@ -355,14 +336,6 @@ def MqSendMultiple():
     except Exception:
         Log(LOG_LEVEL.ERROR, "Error sending MQTT message" + traceback.format_exc())
     Log(LOG_LEVEL.DEBUG, "MqSendMultiple: Complete")
-
-
-def MqSendSingle(variable, value):
-    """Send a single bit of data to the MQTT server."""
-    global mqtt_client
-    mq_path = config.get('MQTT', 'PREFIX') + variable
-    Log(LOG_LEVEL.DEBUG, "MqSendSingle: Sending {0} = {1:0.1f}".format(mq_path, value))
-    mqtt_client.publish(mq_path, value)
 
 
 def ReadConfig():
@@ -727,9 +700,6 @@ if config.getboolean('Sensors', 'ENOCEAN'):
     eoCommunicator = eoSerialCommunicator(port=config.get('EnOcean', 'PORT'))
     eoCommunicator.start()
     Log(LOG_LEVEL.INFO, "EnOceanSensors: Base ID: " + enocean.utils.to_hex_string(eoCommunicator.base_id) + " on port: " + config.get('EnOcean', 'PORT'))
-# if config.getboolean('Output', 'MQTT_PUBLISH'):
-    # mqtt_client = mqtt.Client()
-    # MqInit()
 # Warm up sensors
 BootMessage("Waiting for sensors to settle")
 for j in range(1, 6):
