@@ -12,6 +12,7 @@ import time
 import traceback
 import numpy
 from apscheduler.schedulers.background import BackgroundScheduler
+from usb.core import find as finddev
 
 
 class LOG_LEVEL(IntEnum):
@@ -34,8 +35,6 @@ forecast_toggle = 0
 global_init = True
 mutex = Lock()
 readings = {}
-#
-EnOceanInvocationCounter = 0
 
 
 ########
@@ -84,16 +83,6 @@ def EnOceanSensors(eoComms):
     Log(LOG_LEVEL.DEBUG, "EnOceanSensors: Begin")
     global EnOceanInvocationCounter
     with mutex:
-        EnOceanInvocationCounter += 1
-        if EnOceanInvocationCounter > 1000:
-            EnOceanInvocationCounter = 0
-            try:
-                eoComms.stop()
-                del eoComms
-                eoComms = eoSerialCommunicator(port=config.get('EnOcean', 'PORT'))
-                eoComms.start()
-            except Exception:
-                Log(LOG_LEVEL.ERROR, "EnOceanSensors: Error in restarting communications" + traceback.format_exc())
         try:
             Log(LOG_LEVEL.DEBUG, "EnOceanSensors: Alive: " + str(eoComms.is_alive()))
         except Exception:
@@ -101,8 +90,15 @@ def EnOceanSensors(eoComms):
         if not eoComms.is_alive():
             try:
                 eoComms.stop()
+                time.sleep(10)
             except Exception:
                 Log(LOG_LEVEL.ERROR, "EnOceanSensors: Error stopping communications" + traceback.format_exc())
+            try:
+                dev = finddev(idVendor=0x0403, idProduct=0x6001)
+                dev.reset()
+                time.sleep(10)
+            except Exception:
+                Log(LOG_LEVEL.ERROR, "EnOceanSensors: Error reseting device" + traceback.format_exc())
             try:
                 eoComms = eoSerialCommunicator(port=config.get('EnOcean', 'PORT'))
                 eoComms.start()
