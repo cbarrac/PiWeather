@@ -1,8 +1,8 @@
 #!/bin/sh
 apt-get -y install python-pip python-dev build-essential python-smbus git python-numpy
 pip install --upgrade APScheduler
-pip install --upgrade enum-compat
 pip install --upgrade numpy
+pip install --upgrade pyusb
 pip install --upgrade RPi.GPIO
 # Optional
 pip install --upgrade enocean

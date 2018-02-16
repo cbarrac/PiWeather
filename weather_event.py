@@ -1,31 +1,22 @@
 #!/usr/bin/env python
 """Read in and display environmental sensors."""
 from datetime import datetime
-from enum import IntEnum
 try:
     import configparser
 except ImportError:
     import ConfigParser as configparser
+import logging
 import math
 from multiprocessing import Lock
 import time
-import traceback
 import numpy
 from apscheduler.schedulers.background import BackgroundScheduler
 from usb.core import find as finddev
 
 
-class LOG_LEVEL(IntEnum):
-    """Log Level/Verbosity."""
-
-    NONE = 0
-    ERROR = 1
-    INFO = 2
-    DEBUG = 3
-
-
 # Global Variables
 AdaScreenNumber = 0
+config = configparser.ConfigParser()
 data = {}
 forecast_bom_today = ""
 forecast_bom_tomorrow = ""
@@ -33,6 +24,7 @@ forecast_bom_dayafter = ""
 forecast_file_today = ""
 forecast_toggle = 0
 global_init = True
+log = logging.getLogger("weather_event")
 mutex = Lock()
 readings = {}
 
@@ -67,50 +59,49 @@ def BootMessage(msg):
 
 def DewPoint(RH, TempC):
     """Calculate the Dew Point for a given temperature and relative humidity."""
-    Log(LOG_LEVEL.INFO, "DewPoint: Calculating for RH:{0:.1f} and Temp: {1:.1f}".format(RH, TempC))
+    log.info("DewPoint: Calculating for RH:{0:.1f} and Temp: {1:.1f}".format(RH, TempC))
     # Paroscientific constants (0 <> 60 degc, 0 <> 100% RH)
     # a = 6.105
     b = 17.271
     c = 237.7
     gamma = numpy.log(RH/100.0) + (b * TempC / (c + TempC))
     dp = (c * gamma) / (b - gamma)
-    Log(LOG_LEVEL.INFO, "DewPoint is {0:.1f}".format(dp))
+    log.info("DewPoint is {0:.1f}".format(dp))
     return dp
 
 
 def EnOceanSensors(eoComms):
     """Read temperature from EnOcean wireless sensors."""
-    Log(LOG_LEVEL.DEBUG, "EnOceanSensors: Begin")
-    global EnOceanInvocationCounter
+    log.debug("EnOceanSensors: Begin")
     with mutex:
         try:
-            Log(LOG_LEVEL.DEBUG, "EnOceanSensors: Alive: " + str(eoComms.is_alive()))
+            log.debug("EnOceanSensors: Alive: %s", str(eoComms.is_alive()))
         except Exception:
-            Log(LOG_LEVEL.ERROR, "EnOceanSensors: Error in communications" + traceback.format_exc())
+            log.exception("EnOceanSensors: Error in communications")
         if not eoComms.is_alive():
             try:
                 eoComms.stop()
                 time.sleep(10)
             except Exception:
-                Log(LOG_LEVEL.ERROR, "EnOceanSensors: Error stopping communications" + traceback.format_exc())
+                log.exception("EnOceanSensors: Error stopping communications")
             try:
                 dev = finddev(idVendor=0x0403, idProduct=0x6001)
                 dev.reset()
                 time.sleep(10)
             except Exception:
-                Log(LOG_LEVEL.ERROR, "EnOceanSensors: Error reseting device" + traceback.format_exc())
+                log.exception("EnOceanSensors: Error reseting device")
             try:
                 eoComms = eoSerialCommunicator(port=config.get('EnOcean', 'PORT'))
                 eoComms.start()
-                Log(LOG_LEVEL.INFO, "EnOceanSensors: Re-opened communications on port " + config.get('EnOcean', 'PORT'))
+                log.info("EnOceanSensors: Re-opened communications on port %s", config.get('EnOcean', 'PORT'))
             except Exception:
-                Log(LOG_LEVEL.ERROR, "EnOceanSensors: Error in communications" + traceback.format_exc())
+                log.exception("EnOceanSensors: Error in communications")
         while eoComms.is_alive():
             try:
                 # Loop to empty the queue...
-                Log(LOG_LEVEL.DEBUG, "EnOceanSensors: Receive Loop")
+                log.debug("EnOceanSensors: Receive Loop")
                 packet = eoComms.receive.get(block=False)
-                Log(LOG_LEVEL.DEBUG, "EnOceanSensors: Packet received")
+                log.debug("EnOceanSensors: Packet received")
                 if packet.packet_type == EOPACKET.RADIO and packet.rorg == EORORG.BS4:
                     # parse packet with given FUNC and TYPE
                     # func="0x02" description="Temperature Sensors"
@@ -119,41 +110,41 @@ def EnOceanSensors(eoComms):
                         temp = packet.parsed[k]['value']
                         transmitter_id = packet.sender_hex
                         transmitter_name = MapSensor(transmitter_id)
-                        Log(LOG_LEVEL.INFO, "EnOceanSensors: {0}({1}): {2:0.1f}".format(transmitter_name, transmitter_id, temp))
+                        log.info("EnOceanSensors: {0}({1}): {2:0.1f}".format(transmitter_name, transmitter_id, temp))
                         for x in xrange(config.getint('EnOcean', 'ANTI_SMOOTHING')):
                             Smoothing(transmitter_name, temp)
             except queue.Empty:
                 return
             except Exception:
-                Log(LOG_LEVEL.ERROR, "EnOceanSensors: Error in communications" + traceback.format_exc())
+                log.exception("EnOceanSensors: Error in communications")
 
 
 def Flush(datastore, datastatus):
     """Write out the pywws data store."""
-    Log(LOG_LEVEL.DEBUG, "Flush: datastore")
+    log.debug("Flush: datastore")
     datastore.flush()
-    Log(LOG_LEVEL.DEBUG, "Flush: Write dstatus")
+    log.debug("Flush: Write dstatus")
     try:
         datastatus.set('last update', 'logged', datetime.utcnow().isoformat(' '))
         datastatus.set('fixed', 'fixed block', str(readings))
     except Exception:
-        Log(LOG_LEVEL.ERROR, "Flush: Error setting status" + traceback.format_exc())
-    Log(LOG_LEVEL.DEBUG, "Flush: dstatus")
+        log.exception("Flush: Error setting status")
+    log.debug("Flush: dstatus")
     try:
         datastatus.flush()
     except Exception:
-        Log(LOG_LEVEL.ERROR, "Flush: error in flush" + traceback.format_exc())
-    Log(LOG_LEVEL.DEBUG, "Flush: Complete")
+        log.exception("Flush: error in flush")
+    log.debug("Flush: Complete")
 
 
 def ForecastBoM():
     """Obtain weather predictions from the Bureau of Meteorology."""
-    Log(LOG_LEVEL.DEBUG, "ForecastBoM: start")
+    log.debug("ForecastBoM: start")
     FORECAST_BASE_URL = config.get('BoM', 'FORECAST_BASE_URL')
     FORECAST_STATE_ID = config.get('BoM', 'FORECAST_STATE_ID')
     FORECAST_AAC = config.get('BoM', 'FORECAST_AAC')
     Forecast_URL = FORECAST_BASE_URL + FORECAST_STATE_ID + '.xml'
-    Log(LOG_LEVEL.DEBUG, "ForecastBoM: Connecting to " + Forecast_URL)
+    log.debug("ForecastBoM: Connecting to %s", Forecast_URL)
     global forecast_bom_today
     global forecast_bom_tomorrow
     global forecast_bom_dayafter
@@ -161,17 +152,17 @@ def ForecastBoM():
         response = urllib2.urlopen(Forecast_URL)
         ForecastXML = response.read()
     except Exception:
-        Log(LOG_LEVEL.ERROR, "ForecastBoM: Error downloading forecast file:" + traceback.format_exc())
+        log.exception("ForecastBoM: Error downloading forecast file:")
         return (forecast_bom_today, forecast_bom_tomorrow, forecast_bom_dayafter)
     try:
         ForecastTree = ElementTree.fromstring(ForecastXML)
     except Exception:
-        Log(LOG_LEVEL.ERROR, "ForecastBoM: Error parsing forecast file:" + traceback.format_exc())
+        log.exception("ForecastBoM: Error parsing forecast file:")
         return (forecast_bom_today, forecast_bom_tomorrow, forecast_bom_dayafter)
     try:
         Forecasts = ForecastTree.find('forecast')
     except Exception:
-        Log(LOG_LEVEL.ERROR, "ForecastBoM: Error finding forecast element:" + traceback.format_exc())
+        log.exception("ForecastBoM: Error finding forecast element:")
         return (forecast_bom_today, forecast_bom_tomorrow, forecast_bom_dayafter)
     for area in Forecasts:
         if area.attrib['aac'] == FORECAST_AAC:
@@ -189,14 +180,14 @@ def ForecastBoM():
             except Exception:
                 rain_chance = "?"
             forecast_bom_today = "Max {0} {1} {2}".format(max_temp, rain_chance, forecast_text)
-            Log(LOG_LEVEL.INFO, "ForecastBoM: Today:" + forecast_bom_today)
+            log.info("ForecastBoM: Today: %s", forecast_bom_today)
             try:
                 channel = config.get('BoM', 'FORECAST_CHANNEL_TODAY')
                 if readings.get(channel, None) is None:
                     readings[channel] = [0]
                 readings[channel][0] = forecast_bom_today
             except Exception:
-                Log(LOG_LEVEL.ERROR, "ForecastBoM: Could not populate today forecast to memory store" + traceback.format_exc())
+                log.exception("ForecastBoM: Could not populate today forecast to memory store")
             # Tomorrow
             try:
                 min_temp = area._children[1].find("*[@type='air_temperature_minimum']").text
@@ -215,14 +206,14 @@ def ForecastBoM():
             except Exception:
                 rain_chance = "?"
             forecast_bom_tomorrow = "{0}-{1} {2} {3}".format(min_temp, max_temp, rain_chance, forecast_text)
-            Log(LOG_LEVEL.INFO, "ForecastBoM: Tomorrow:" + forecast_bom_tomorrow)
+            log.info("ForecastBoM: Tomorrow: %s", forecast_bom_tomorrow)
             try:
                 channel = config.get('BoM', 'FORECAST_CHANNEL_TOMORROW')
                 if readings.get(channel, None) is None:
                     readings[channel] = [0]
                 readings[channel][0] = forecast_bom_tomorrow
             except Exception:
-                Log(LOG_LEVEL.ERROR, "ForecastBoM: Could not populate tomorrow forecast to memory store" + traceback.format_exc())
+                log.exception("ForecastBoM: Could not populate tomorrow forecast to memory store")
             # Day after tomorrow
             try:
                 min_temp = area._children[2].find("*[@type='air_temperature_minimum']").text
@@ -241,37 +232,37 @@ def ForecastBoM():
             except Exception:
                 rain_chance = "?"
             forecast_bom_dayafter = "{0}-{1} {2} {3}".format(min_temp, max_temp, rain_chance, forecast_text)
-            Log(LOG_LEVEL.INFO, "ForecastBoM: Day After Tomorrow:" + forecast_bom_dayafter)
+            log.info("ForecastBoM: Day After Tomorrow: %s", forecast_bom_dayafter)
             try:
                 channel = config.get('BoM', 'FORECAST_CHANNEL_DAYAFTER')
                 if readings.get(channel, None) is None:
                     readings[channel] = [0]
                 readings[channel][0] = forecast_bom_dayafter
             except Exception:
-                Log(LOG_LEVEL.ERROR, "ForecastBoM: Could not populate day after tomorrow forecast to memory store" + traceback.format_exc())
+                log.exception("ForecastBoM: Could not populate day after tomorrow forecast to memory store")
             return (forecast_bom_today, forecast_bom_tomorrow, forecast_bom_dayafter)
     return (forecast_bom_today, forecast_bom_tomorrow, forecast_bom_dayafter)
 
 
 def ForecastFile():
     """Read in weather forecasts from the filesystem."""
-    Log(LOG_LEVEL.DEBUG, "ForecastFile: start")
+    log.debug("ForecastFile: start")
     global forecast_file_today
     forecast_filename = config.get('ForecastFile', 'FILE')
     try:
         with open(forecast_filename) as foreFile:
             forecast_file_today = foreFile.read()
     except Exception:
-        Log(LOG_LEVEL.ERROR, "ForecastFile: Error reading forecast from file" + traceback.format_exc())
+        log.exception("ForecastFile: Error reading forecast from file")
     try:
         channel = config.get('ForecastFile', 'FORECAST_CHANNEL')
         if readings.get(channel, None) is None:
             readings[channel] = [0]
         readings[channel][0] = forecast_file_today
     except Exception:
-        Log(LOG_LEVEL.ERROR, "ForecastFile: Could not populate forecast to memory store" + traceback.format_exc())
-    Log(LOG_LEVEL.INFO, "ForecastFile: \"%s\"" % forecast_file_today)
-    Log(LOG_LEVEL.DEBUG, "ForecastFile: Complete")
+        log.exception("ForecastFile: Could not populate forecast to memory store")
+    log.info("ForecastFile: \"%s\"", forecast_file_today)
+    log.debug("ForecastFile: Complete")
 
 
 def FormatDisplay(input_text, max_length, max_height):
@@ -299,14 +290,6 @@ def FormatDisplay(input_text, max_length, max_height):
     return display
 
 
-def Log(level, message):
-    """Quick log printer."""
-    # None, Error, Info, Debug
-    # 0     1      2     3
-    if config.getint('General', 'LOG_LEVEL') >= level:
-        print message
-
-
 def MapSensor(sensor_id):
     """Map a Sensor ID to its location."""
     sid = sensor_id.replace(':', '')
@@ -318,20 +301,20 @@ def MapSensor(sensor_id):
 
 def MqSendMultiple():
     """Send multiple bits of data to the MQTT server."""
-    Log(LOG_LEVEL.DEBUG, "MqSendMultiple: Build Message")
+    log.debug("MqSendMultiple: Build Message")
     msgs = []
     for reading in readings:
         mq_path = config.get('MQTT', 'PREFIX') + reading
         value = readings[reading][0]
         msg = {'topic': mq_path, 'payload': value}
-        Log(LOG_LEVEL.DEBUG, "MqSendMultiple: Payload Element {0}".format(msg))
+        log.debug("MqSendMultiple: Payload Element %s", msg)
         msgs.append(msg)
-    Log(LOG_LEVEL.DEBUG, "MqSendMultiple: Sending multiple")
+    log.debug("MqSendMultiple: Sending multiple")
     try:
         publish.multiple(msgs, hostname=config.get('MQTT', 'SERVER'), port=config.getint('MQTT', 'PORT'), client_id=config.get('MQTT', 'CLIENTID'))
     except Exception:
-        Log(LOG_LEVEL.ERROR, "Error sending MQTT message" + traceback.format_exc())
-    Log(LOG_LEVEL.DEBUG, "MqSendMultiple: Complete")
+        log.exception("Error sending MQTT message")
+    log.debug("MqSendMultiple: Complete")
 
 
 def ReadConfig():
@@ -355,7 +338,7 @@ def RelToAbsHumidity(relativeHumidity, temperature):
 
 def Sample():
     """Read all the configured (local) sensor inputs."""
-    Log(LOG_LEVEL.DEBUG, "Sample: read")
+    log.debug("Sample: read")
     global readings
     if config.getboolean('Sensors', 'BME280'):
         # !Make sure to read temperature first!
@@ -366,7 +349,7 @@ def Sample():
             Smoothing(config.get('BME280', 'PRESSURE_CHANNEL'), ((BmeSensor.read_pressure()/100.0) + config.get('Calibration', 'ALTITUDE_PRESSURE_OFFSET', 1) + config.getfloat('Calibration', 'BME280_PRESSURE')))
             Smoothing(config.get('BME280', 'HUMIDITY_CHANNEL'), (BmeSensor.read_humidity() + config.getfloat('Calibration', 'BME280_HUM_IN')))
         except Exception:
-            Log(LOG_LEVEL.ERROR, "Error reading BME280: " + traceback.format_exc())
+            log.exception("Error reading BME280: ")
 
     if config.getboolean('Sensors', 'BMP085'):
         try:
@@ -374,39 +357,39 @@ def Sample():
             # Note: read_pressure returns Pa, divide by 100 for hectopascals (hPa)
             Smoothing(config.get('BME280', 'PRESSURE_CHANNEL'), ((BmpSensor.read_pressure()/100.0) + config.getfloat('Calibration', 'BMP085_PRESSURE')))
         except Exception:
-            Log(LOG_LEVEL.ERROR, "Error reading BMP085" + traceback.format_exc())
+            log.exception("Error reading BMP085")
     if config.getboolean('Sensors', 'SENSEHAT'):
         try:
             Smoothing(config.get('SENSEHAT', 'PRESSURE_CHANNEL'), (PiSenseHat.get_pressure() + config.get('Calibration', 'ALTITUDE_PRESSURE_OFFSET', 1) + config.getfloat('Calibration', 'SENSEHAT_PRESSURE')))
             Smoothing(config.get('SENSEHAT', 'HUMIDITY_CHANNEL'), (PiSenseHat.get_humidity() + config.getfloat('Calibration', 'SENSEHAT_HUM_IN')))
             Smoothing(config.get('SENSEHAT', 'TEMPERATURE_CHANNEL'), (PiSenseHat.get_temperature_from_pressure() + config.getfloat('Calibration', 'SENSEHAT_TEMP_IN')))
         except Exception:
-            Log(LOG_LEVEL.ERROR, "Error reading SENSEHAT" + traceback.format_exc())
+            log.exception("Error reading SENSEHAT")
     if config.getboolean('Sensors', 'SI1145'):
         try:
             Smoothing(config.get('SI1145', 'VISIBLE_CHANNEL'), ((SiSensor.readVisible() + config.getfloat('Calibration', 'SI1145_VISIBLE')) / config.getfloat('Calibration', 'SI1145_VISIBLE_RESPONSE')))
             Smoothing(config.get('SI1145', 'IR_CHANNEL'), ((SiSensor.readIR() + config.getfloat('Calibration', 'SI1145_IR')) / config.getfloat('Calibration', 'SI1145_IR_RESPONSE')))
             Smoothing(config.get('SI1145', 'UV_CHANNEL'), (((SiSensor.readUV()/100.0) + config.getfloat('Calibration', 'SI1145_UV')) / config.getfloat('Calibration', 'SI1145_UV_RESPONSE')))
         except Exception:
-            Log(LOG_LEVEL.ERROR, "Error reading SI1145" + traceback.format_exc())
+            log.exception("Error reading SI1145")
     if config.getboolean('Sensors', 'DEWPOINT_CALC') and not global_init:
         try:
             Smoothing(config.get('DewPoint', 'DEWPOINT_CHANNEL'), DewPoint(readings[config.get('DewPoint', 'HUMIDITY_CHANNEL')][0], readings[config.get('DewPoint', 'TEMPERATURE_CHANNEL')][0]))
         except Exception:
-            Log(LOG_LEVEL.ERROR, "Error calculating Dew Point" + traceback.format_exc())
-    Log(LOG_LEVEL.DEBUG, "Sample: Complete")
+            log.exception("Error calculating Dew Point")
+    log.debug("Sample: Complete")
 
 
 def Smoothing(channel, value):
     """Apply smoothing (averaging) to the supplied data."""
-    Log(LOG_LEVEL.DEBUG, "Smoothing: " + channel)
+    log.debug("Smoothing: %s", channel)
     if global_init:
-        Log(LOG_LEVEL.DEBUG, "Init Mode: returning with no storage")
+        log.debug("Init Mode: returning with no storage")
         return
     average = 0
     global readings
     if readings.get(channel, None) is None:
-        Log(LOG_LEVEL.DEBUG, "Init %s" % channel)
+        log.debug("Init %s", channel)
         readings[channel] = [config.getint('General', 'MININT') for x in xrange(config.getint('General', 'SMOOTHING')+1)]
     for i in range(1, (config.getint('General', 'SMOOTHING'))):
         if readings[channel][i+1] == config.getint('General', 'MININT'):
@@ -417,13 +400,11 @@ def Smoothing(channel, value):
     average += value
     average = average / config.getint('General', 'SMOOTHING')
     readings[channel][0] = average
-    # Log(LOG_LEVEL.DEBUG,"Smoothing: Readings[%s]: %s" % (channel, readings[channel]))
-    # Log(LOG_LEVEL.DEBUG,"Smoothing: Complete")
 
 
 def Store(datastore):
     """Output data to the pywws store."""
-    Log(LOG_LEVEL.DEBUG, "Store: Write to data")
+    log.debug("Store: Write to data")
     global data
     data = {}
     try:
@@ -472,12 +453,12 @@ def Store(datastore):
         data['wind_gust'] = float(readings[config.get('PYWWS', 'WIND_GUST_CHANNEL')][0])
     except Exception:
         data['wind_gust'] = None
-    Log(LOG_LEVEL.DEBUG, "Store: Write to datastore")
+    log.debug("Store: Write to datastore")
     try:
         datastore[datetime.utcnow()] = data
     except Exception:
-        Log(LOG_LEVEL.ERROR, "Store: Error pushing data" + traceback.format_exc())
-    Log(LOG_LEVEL.DEBUG, "Store: Complete")
+        log.exception("Store: Error pushing data")
+    log.debug("Store: Complete")
 
 
 def WriteAdaLcd():
@@ -510,12 +491,12 @@ def WriteAdaLcd():
             else:
                 AdaScreenNumber = 0
         except Exception:
-            Log(LOG_LEVEL.ERROR, "WriteAdaLcd: Error creating message" + traceback.format_exc())
+            log.exception("WriteAdaLcd: Error creating message")
             msg = "Data Error"
     try:
         AdaLcd.clear()
     except Exception:
-        Log(LOG_LEVEL.ERROR, "WriteAdaLcd: Error clearing LCD" + traceback.format_exc())
+        log.exception("WriteAdaLcd: Error clearing LCD")
     try:
         uv = readings[config.get('Adafruit_LCD', 'UV_CHANNEL')][0]
         if uv < 3.0:
@@ -534,16 +515,16 @@ def WriteAdaLcd():
             # Extreme
             AdaLcd.set_color(1.0, 0.2, 1.0)  # rgb(255,64,255)
     except Exception:
-        Log(LOG_LEVEL.ERROR, "WriteAdaLcd: Error setting backlight" + traceback.format_exc())
+        log.exception("WriteAdaLcd: Error setting backlight")
     try:
         AdaLcd.message(msg)
     except Exception:
-        Log(LOG_LEVEL.ERROR, "WriteAdaLcd: Error writing message" + traceback.format_exc())
+        log.exception("WriteAdaLcd: Error writing message")
 
 
 def WriteConsole():
     """Write out readings to the console."""
-    Log(LOG_LEVEL.DEBUG, "WriteConsole: start")
+    log.debug("WriteConsole: start")
     print time.ctime(),
     if config.getboolean('Output', 'BRUTAL_VIEW'):
         for reading in readings:
@@ -590,12 +571,12 @@ def WriteConsole():
         except Exception:
             print "Forecast: x",
     print
-    Log(LOG_LEVEL.DEBUG, "WriteConsole: Complete")
+    log.debug("WriteConsole: Complete")
 
 
 def WriteSenseHat():
     """Write out status to a Pi Sense Hat."""
-    Log(LOG_LEVEL.DEBUG, "WriteSenseHat: start")
+    log.debug("WriteSenseHat: start")
     global forecast_toggle
     if config.getint('Rates', 'FORECAST_REFRESH_RATE') > 0 and forecast_toggle == 1 and forecast_file_today:
         forecast_toggle = 0
@@ -631,7 +612,7 @@ def WriteSenseHat():
             Background = config.get('SenseHat', 'BG_NIGHT')
     PiSenseHat.show_message(msg, scroll_speed=config.get('SenseHat', 'SCROLL'), text_colour=Foreground, back_colour=Background)
     PiSenseHat.clear()
-    Log(LOG_LEVEL.DEBUG, "WriteSenseHat: Complete")
+    log.debug("WriteSenseHat: Complete")
 
 
 ########
@@ -643,6 +624,7 @@ ReadConfig()
 ########
 # Optional
 ########
+log.setLevel(config.getint('General', 'LOG_LEVEL'))
 if config.getboolean('Output', 'ADA_LCD'):
     import Adafruit_CharLCD
     AdaLcd = Adafruit_CharLCD.Adafruit_CharLCDPlate()
@@ -658,8 +640,7 @@ if config.getboolean('Sensors', 'ENOCEAN'):
     import enocean.protocol.packet
     from enocean.protocol.constants import PACKET as EOPACKET, RORG as EORORG
     import enocean.utils
-    if config.getint('General', 'LOG_LEVEL') >= LOG_LEVEL.DEBUG:
-        from enocean.consolelogger import init_logging
+    from enocean.consolelogger import init_logging
     try:
         import queue
     except ImportError:
@@ -691,11 +672,10 @@ if config.getboolean('Output', 'SENSEHAT_DISPLAY'):
     PiSenseHat.clear()
     PiSenseHat.set_rotation(config.get('SenseHat', 'ROTATION'))
 if config.getboolean('Sensors', 'ENOCEAN'):
-    if config.getint('General', 'LOG_LEVEL') >= LOG_LEVEL.DEBUG:
-        init_logging()
+    init_logging(level=config.getint('General', 'LOG_LEVEL'))
     eoCommunicator = eoSerialCommunicator(port=config.get('EnOcean', 'PORT'))
     eoCommunicator.start()
-    Log(LOG_LEVEL.INFO, "EnOceanSensors: Base ID: " + enocean.utils.to_hex_string(eoCommunicator.base_id) + " on port: " + config.get('EnOcean', 'PORT'))
+    log.info("EnOceanSensors: Base ID: " + enocean.utils.to_hex_string(eoCommunicator.base_id) + " on port: " + config.get('EnOcean', 'PORT'))
 # Warm up sensors
 BootMessage("Waiting for sensors to settle")
 for j in range(1, 6):
@@ -706,12 +686,12 @@ if config.getboolean('Sensors', 'FORECAST_BOM'):
     try:
         ForecastBoM()
     except Exception:
-        Log(LOG_LEVEL.ERROR, "ForecastBoM: Error in initial call" + traceback.format_exc())
+        log.exception("ForecastBoM: Error in initial call")
 if config.getboolean('Sensors', 'FORECAST_FILE'):
     try:
         ForecastFile()
     except Exception:
-        Log(LOG_LEVEL.ERROR, "ForecastBoM: Error in initial call" + traceback.format_exc())
+        log.exception("ForecastBoM: Error in initial call")
 Sample()
 BootMessage("Scheduling events...")
 scheduler = BackgroundScheduler()
@@ -764,3 +744,4 @@ except (KeyboardInterrupt, SystemExit):
         if eoCommunicator.is_alive():
             eoCommunicator.stop()
     BootMessage("Goodbye")
+    log.shutdown()

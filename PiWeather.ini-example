@@ -72,9 +72,9 @@ FORECAST_CHANNEL = forecast/zambretti
 [General]
 DAWN = 6
 DUSK = 19
-# None, Error, Info, Debug
-# 0     1      2     3
-LOG_LEVEL = 1
+# None, Debug, Info, Warning, Error, Fatal
+# 0     10     20    30       40     50
+LOG_LEVEL = 30
 # -(sys.maxsize - 1)
 MININT = -9223372036854775806
 SMOOTHING = 30
