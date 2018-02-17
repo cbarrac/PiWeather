@@ -1,8 +1,8 @@
 #!/bin/sh
 apt-get -y install python-pip python-dev build-essential python-smbus git python-numpy
 pip install APScheduler
-pip install enum-compat
 pip install numpy
+pip install pyusb
 # Optional
 pip install enocean
 pip install paho-mqtt
