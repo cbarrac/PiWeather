@@ -1,0 +1,10 @@
+enocean==0.31
+numpy==1.16.0
+Adafruit_BMP==1.5.4
+Adafruit_CharLCD==1.1.1
+Adafruit_GPIO==1.0.3
+apscheduler==3.5.3
+paho_mqtt==1.4.0
+pywws==18.10.1
+sense_hat==2.2.0
+pyusb==1.0.2
