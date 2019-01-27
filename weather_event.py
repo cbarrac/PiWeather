@@ -111,7 +111,7 @@ def EnOceanSensors(eoComms):
                         transmitter_id = packet.sender_hex
                         transmitter_name = MapSensor(transmitter_id)
                         log.info("EnOceanSensors: {0}({1}): {2:0.1f}".format(transmitter_name, transmitter_id, temp))
-                        for x in xrange(config.getint('EnOcean', 'ANTI_SMOOTHING')):
+                        for dummy in xrange(config.getint('EnOcean', 'ANTI_SMOOTHING')):
                             Smoothing(transmitter_name, temp)
             except queue.Empty:
                 return
@@ -149,7 +149,7 @@ def ForecastBoM():
     global forecast_bom_tomorrow
     global forecast_bom_dayafter
     try:
-        response = urllib2.urlopen(Forecast_URL)
+        response = urllib2.urlopen(Forecast_URL, timeout = 180)
         ForecastXML = response.read()
     except Exception:
         log.exception("ForecastBoM: Error downloading forecast file:")
@@ -390,7 +390,7 @@ def Smoothing(channel, value):
     global readings
     if readings.get(channel, None) is None:
         log.debug("Init %s", channel)
-        readings[channel] = [config.getint('General', 'MININT') for x in xrange(config.getint('General', 'SMOOTHING')+1)]
+        readings[channel] = [config.getint('General', 'MININT') for dummy in xrange(config.getint('General', 'SMOOTHING')+1)]
     for i in range(1, (config.getint('General', 'SMOOTHING'))):
         if readings[channel][i+1] == config.getint('General', 'MININT'):
             readings[channel][i+1] = value
