@@ -1,5 +1,5 @@
 enocean==0.31
-numpy==1.16.0
+numpy==1.16.1
 Adafruit_BMP==1.5.4
 Adafruit_CharLCD==1.1.1
 Adafruit_GPIO==1.0.3

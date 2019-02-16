@@ -78,21 +78,30 @@ LOG_LEVEL = 30
 # -(sys.maxsize - 1)
 MININT = -9223372036854775806
 SMOOTHING = 30
+SOLAR_MAX = 3900
+
+[HOMIE_INPUT]
+HOST = mqtt.server.name
+PORT = 1883
+TIMEOUT = 60
+ANTI_SMOOTHING = 12
+TOPICS = { 'devices/+/temperature/centigrade' : 'dummy', 'devices/+/humidity/relative' : 'dummy', 'devices/+/power/watts' : 'dummy' }
+DEVICES = {'000001': 'temperature/c_bedroom', '000002': 'temperature/outside', '000003': 'temperature/m_bedroom', '000004': 'temperature/computer_room', '000005': 'power/solar', '000006': 'temperature/PMS' }
 
 [MQTT]
 SERVER = mqtt.server.name
 PORT = 1883
 CLIENTID = piweather
-PREFIX = /sensors/
+PREFIX = sensors/
 TIMEOUT = 60
 
 [Output]
-BRUTAL_VIEW = True
 ADA_LCD = True
+BRUTAL_VIEW = True
 CONSOLE_OUTPUT = True
-SENSEHAT_DISPLAY = False
-PYWWS_PUBLISH = True
 MQTT_PUBLISH = True
+PYWWS_PUBLISH = False
+SENSEHAT_DISPLAY = False
 
 [PYWWS]
 STORAGE = /opt/weather/

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Read in and display environmental sensors."""
+import ast
 from datetime import datetime
 try:
     import configparser
@@ -24,6 +25,7 @@ forecast_bom_dayafter = ""
 forecast_file_today = ""
 forecast_toggle = 0
 global_init = True
+logging.basicConfig()
 log = logging.getLogger("weather_event")
 mutex = Lock()
 readings = {}
@@ -46,7 +48,8 @@ def AltitudeOffset(Altitude):
 
 def BootMessage(msg):
     """Output messages to the LCD screen on boot-up."""
-    print msg
+    print(msg)
+    log.info(msg)
     if config.getboolean('Output', 'ADA_LCD'):
         try:
             AdaLcd.clear()
@@ -54,7 +57,7 @@ def BootMessage(msg):
             msg = FormatDisplay(msg, config.getint('Adafruit_LCD', 'LCD_WIDTH'), config.getint('Adafruit_LCD', 'LCD_HEIGHT'))
             AdaLcd.message(msg)
         except Exception:
-            print "Could not write to LCD"
+            print("Could not write to LCD")
 
 
 def DewPoint(RH, TempC):
@@ -149,7 +152,7 @@ def ForecastBoM():
     global forecast_bom_tomorrow
     global forecast_bom_dayafter
     try:
-        response = urllib2.urlopen(Forecast_URL, timeout = 180)
+        response = urllib2.urlopen(Forecast_URL, timeout=180)
         ForecastXML = response.read()
     except Exception:
         log.exception("ForecastBoM: Error downloading forecast file:")
@@ -315,6 +318,18 @@ def MqSendMultiple():
     except Exception:
         log.exception("Error sending MQTT message")
     log.debug("MqSendMultiple: Complete")
+
+
+def on_mqtt_message(mqttc, userdata, msg):
+    """Event handler for receipt of an MQTT message"""
+    log.debug(msg.topic + " " + str(msg.payload))
+    topicParts = re.split('/', msg.topic)
+    devicemap = ast.literal_eval(config.get('HOMIE_INPUT', 'DEVICES'))
+    if topicParts[1] in devicemap:
+        deviceID = devicemap[topicParts[1]]
+        log.debug("Device: " + str(deviceID))
+        for dummy in xrange(config.getint('HOMIE_INPUT', 'ANTI_SMOOTHING')):
+            Smoothing(deviceID, float(msg.payload))
 
 
 def ReadConfig():
@@ -488,6 +503,43 @@ def WriteAdaLcd():
                 AdaScreenNumber += 1
                 msg = FormatDisplay("Nxt:" + forecast_bom_dayafter, config.getint('Adafruit_LCD', 'LCD_WIDTH'), config.getint('Adafruit_LCD', 'LCD_HEIGHT'))
                 msg_success = True
+            # ----------------
+            elif AdaScreenNumber == 5:
+                AdaScreenNumber += 1
+                if readings.get('temperature/computer_room', None) is None:
+                    t_computer_room = "?"
+                else:
+                    t_computer_room = "{0:0.1f}".format(readings['temperature/computer_room'][0])
+                if readings.get('temperature/c_bedroom', None) is None:
+                    t_c_bedroom = "?"
+                else:
+                    t_c_bedroom = "{0:0.1f}".format(readings['temperature/c_bedroom'][0])
+                if readings.get('temperature/outside', None) is None:
+                    t_outside = "?"
+                else:
+                    t_outside = "{0:0.1f}".format(readings['temperature/outside'][0])
+                if readings.get('temperature/m_bedroom', None) is None:
+                    t_m_bedroom = "?"
+                else:
+                    t_m_bedroom = "{0:0.1f}".format(readings['temperature/m_bedroom'][0])
+
+                msg = FormatDisplay("U:" + t_computer_room + " C:" + t_c_bedroom + " O:" + t_outside + " M:" + t_m_bedroom, config.getint('Adafruit_LCD', 'LCD_WIDTH'), config.getint('Adafruit_LCD', 'LCD_HEIGHT'))
+                msg_success = True
+            # ----------------
+            elif AdaScreenNumber == 6:
+                AdaScreenNumber += 1
+                if readings.get('power/solar', None) is None:
+                    p_power_solar = "?"
+                    p_percent = "?"
+                else:
+                    p_power_solar = "{0:0.0f}".format(readings['power/solar'][0])
+                    p_percent = readings['power/solar'][0] * 100 / config.getint('General', 'SOLAR_MAX')
+                    s_percent = "{0:0.0f}".format(p_percent)
+                    log.debug("p_power_solar: " + p_power_solar + " s_percent " + s_percent + "%")
+                    log.debug("solar_max: " + config.get('General', 'SOLAR_MAX'))
+                msg = FormatDisplay("Solar:" + p_power_solar + "W " + s_percent + "%", config.getint('Adafruit_LCD', 'LCD_WIDTH'), config.getint('Adafruit_LCD', 'LCD_HEIGHT'))
+                msg_success = True
+            # ----------------
             else:
                 AdaScreenNumber = 0
         except Exception:
@@ -525,12 +577,12 @@ def WriteAdaLcd():
 def WriteConsole():
     """Write out readings to the console."""
     log.debug("WriteConsole: start")
-    print time.ctime(),
+    print(time.ctime()),
     if config.getboolean('Output', 'BRUTAL_VIEW'):
         for reading in readings:
             value = readings[reading][0]
             try:
-                print "{0}: {1:.1f}".format(reading, value),
+                print "{0}: {1:0.1f}".format(reading, value),
             except Exception:
                 print "{0}: {1}".format(reading, value),
     else:
@@ -648,9 +700,11 @@ if config.getboolean('Sensors', 'ENOCEAN'):
 if config.getboolean('Sensors', 'FORECAST_BOM'):
     import urllib2
     import xml.etree.ElementTree as ElementTree
+if config.getboolean('Sensors', 'HOMIE'):
+    import paho.mqtt.client as mqtt
+    import re
 if config.getboolean('Output', 'MQTT_PUBLISH'):
     import paho.mqtt.publish as publish
-    # import paho.mqtt.client as mqtt
 if config.getboolean('Output', 'PYWWS_PUBLISH'):
     from pywws import DataStore
 if config.getboolean('Sensors', 'SENSEHAT') or config.getboolean('Output', 'SENSEHAT_DISPLAY'):
@@ -692,6 +746,14 @@ if config.getboolean('Sensors', 'FORECAST_FILE'):
         ForecastFile()
     except Exception:
         log.exception("ForecastBoM: Error in initial call")
+if config.getboolean('Sensors', 'HOMIE'):
+    mqttc = mqtt.Client()
+    mqttc.on_message = on_mqtt_message
+    mqttc.connect(config.get('HOMIE_INPUT', 'HOST'), config.getint('HOMIE_INPUT', 'PORT'), config.getint('HOMIE_INPUT', 'TIMEOUT'))
+    topics = ast.literal_eval(config.get('HOMIE_INPUT', 'TOPICS'))
+    for val in topics:
+        log.debug("Subscribing to topic : " + val)
+        mqttc.subscribe(val, 0)
 Sample()
 BootMessage("Scheduling events...")
 scheduler = BackgroundScheduler()
@@ -727,7 +789,10 @@ BootMessage("Entering event loop")
 try:
     # This is here to simulate application activity (which keeps the main thread alive).
     while True:
-        time.sleep(1)
+        if config.getboolean('Sensors', 'HOMIE'):
+            mqttc.loop_forever()
+        else:
+            time.sleep(1)
 except (KeyboardInterrupt, SystemExit):
     # Not strictly necessary if daemonic mode is enabled but should be done if possible
     BootMessage("Shutting down scheduler")
@@ -744,4 +809,4 @@ except (KeyboardInterrupt, SystemExit):
         if eoCommunicator.is_alive():
             eoCommunicator.stop()
     BootMessage("Goodbye")
-    log.shutdown()
+    logging.shutdown()
