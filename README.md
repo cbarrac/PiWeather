@@ -71,3 +71,8 @@ and a name. e.g. `01812345 = room1`, would mean an sensor with address
 ### BoM
 Find your state [here](http://www.bom.gov.au/info/precis_forecasts.shtml), it will look something like `IDV10753`
 Have a look inside the XML, and find your nearest BoM forecast area, it will look something like `VIC_PT042`
+
+### Homie
+Listens for incoming MQTT messages, and maps to local sensor variables, that can then be displayed.
+Original intent was to utilise a python Homie library, however I failed to find one that could listen, instead of publish.
+Current implementation subscribes to a number of Topics, and then maps a device to a local variable.
