@@ -320,6 +320,13 @@ def MqSendMultiple():
     log.debug("MqSendMultiple: Complete")
 
 
+def on_mqtt_connect(mqttc, userdata, flags, rc):
+    log.info("MqttClient: Connect")
+    topics = ast.literal_eval(config.get('HOMIE_INPUT', 'TOPICS'))
+    for val in topics:
+        log.debug("Subscribing to topic : " + val)
+        mqttc.subscribe(val, 0)
+
 def on_mqtt_message(mqttc, userdata, msg):
     """Event handler for receipt of an MQTT message"""
     log.debug(msg.topic + " " + str(msg.payload))
@@ -749,11 +756,9 @@ if config.getboolean('Sensors', 'FORECAST_FILE'):
 if config.getboolean('Sensors', 'HOMIE'):
     mqttc = mqtt.Client()
     mqttc.on_message = on_mqtt_message
-    mqttc.connect(config.get('HOMIE_INPUT', 'HOST'), config.getint('HOMIE_INPUT', 'PORT'), config.getint('HOMIE_INPUT', 'TIMEOUT'))
-    topics = ast.literal_eval(config.get('HOMIE_INPUT', 'TOPICS'))
-    for val in topics:
-        log.debug("Subscribing to topic : " + val)
-        mqttc.subscribe(val, 0)
+    mqttc.on_connect = on_mqtt_connect
+    mqttc.reconnect_delay_set(min_delay=1, max_delay=120)
+    mqttc.connect(config.get('HOMIE_INPUT', 'HOST'), port=config.getint('HOMIE_INPUT', 'PORT'), keepalive=config.getint('HOMIE_INPUT', 'TIMEOUT'))
 Sample()
 BootMessage("Scheduling events...")
 scheduler = BackgroundScheduler()
