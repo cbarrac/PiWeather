@@ -778,8 +778,6 @@ if config.getboolean('Output', 'SENSEHAT_DISPLAY'):
     scheduler.add_job(WriteSenseHat, 'interval', seconds=config.getint('Rates', 'SENSEHAT_OUTPUT_RATE'), id='SenseHat', max_instances=1, coalesce=True)
 
 scheduler.start()
-if config.getboolean('Output', 'ADA_LCD'):
-    WriteAdaLcd()
 if config.getboolean('Output', 'CONSOLE_OUTPUT'):
     WriteConsole()
 if config.getboolean('Output', 'MQTT_PUBLISH'):
