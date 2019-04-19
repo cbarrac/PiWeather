@@ -745,20 +745,24 @@ for j in range(1, 6):
 global_init = False
 if config.getboolean('Sensors', 'FORECAST_BOM'):
     try:
+        BootMessage("Waiting for BoM")
         ForecastBoM()
     except Exception:
         log.exception("ForecastBoM: Error in initial call")
 if config.getboolean('Sensors', 'FORECAST_FILE'):
     try:
+        BootMessage("Waiting for File")
         ForecastFile()
     except Exception:
         log.exception("ForecastBoM: Error in initial call")
 if config.getboolean('Sensors', 'HOMIE'):
+    BootMessage("Waiting for Homie")
     mqttc = mqtt.Client()
     mqttc.on_message = on_mqtt_message
     mqttc.on_connect = on_mqtt_connect
     mqttc.reconnect_delay_set(min_delay=1, max_delay=120)
     mqttc.connect(config.get('HOMIE_INPUT', 'HOST'), port=config.getint('HOMIE_INPUT', 'PORT'), keepalive=config.getint('HOMIE_INPUT', 'TIMEOUT'))
+BootMessage("Waiting for Samples")
 Sample()
 BootMessage("Scheduling events...")
 scheduler = BackgroundScheduler()
