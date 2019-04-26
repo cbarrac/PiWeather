@@ -564,7 +564,7 @@ def WriteAdaLcd():
         elif uv < 6.0:
             # Moderate
             AdaLcd.set_color(1.0, 1.0, 0.2)  # rgb(255,255,64)
-        elif uv < 6.0:
+        elif uv < 8.0:
             # High
             AdaLcd.set_color(1.0, 0.5, 0.2)  # rgb(255,128,64)
         elif uv < 11.0:
