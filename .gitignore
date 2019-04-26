@@ -63,3 +63,6 @@ target/
 
 # Config Files
 PiWeather.ini
+
+# Ignore SonarQube
+.scannerwork/
