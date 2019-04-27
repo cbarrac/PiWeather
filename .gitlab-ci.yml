@@ -5,8 +5,8 @@ codequality_preview:
   stage: test
   script:
     - apt-get update; apt-get -y install wget
-    - cd /opt; wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-3.3.0.1492-linux.zip; unzip sonar-scanner-cli-3.3.0.1492-linux.zip; cd sonar-scanner-3.3.0.1492/bin
-    - ./sonar-scanner -Dsonar.host.url=http://192.168.5.2:9000 -Dsonar.analysis.mode=preview -Dsonar.login=$SONARQUBE_TOKEN -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME -Dsonar.projectVersion=$CI_BUILD_ID -Dsonar.branch=$CI_BUILD_REF_NAME -Dsonar.gitlab.project_id=$CI_PROJECT_URL
+    - wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-3.3.0.1492-linux.zip; unzip sonar-scanner-cli-3.3.0.1492-linux.zip
+    - sonar-scanner-3.3.0.1492/bin/sonar-scanner -Dsonar.host.url=http://192.168.5.2:9000 -Dsonar.analysis.mode=preview -Dsonar.login=$SONARQUBE_TOKEN -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref_name=$CI_BUILD_REF_NAME -Dsonar.projectVersion=$CI_BUILD_ID -Dsonar.branch=$CI_BUILD_REF_NAME -Dsonar.gitlab.project_id=$CI_PROJECT_URL
 
 #######################################
 # Check the project code quality with Sonar, make sure your Gitlab project has a secret variable (project -> settings -> CI/CD) defined called SONAR_TOKEN
@@ -15,5 +15,5 @@ codequality:
   stage: test
   script:
     - apt-get update; apt-get -y install wget
-    - cd /opt; wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-3.3.0.1492-linux.zip; unzip sonar-scanner-cli-3.3.0.1492-linux.zip; cd sonar-scanner-3.3.0.1492/bin
-    - ./sonar-scanner -Dsonar.host.url=https://192.168.5.2:9000 -Dsonar.login=$SONARQUBE_TOKEN -Dsonar.projectVersion=$CI_BUILD_ID -Dsonar.branch=$CI_BUILD_REF_NAME
+    - wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-3.3.0.1492-linux.zip; unzip sonar-scanner-cli-3.3.0.1492-linux.zip
+    - sonar-scanner-3.3.0.1492/bin/sonar-scanner -Dsonar.host.url=https://192.168.5.2:9000 -Dsonar.login=$SONARQUBE_TOKEN -Dsonar.projectVersion=$CI_BUILD_ID -Dsonar.branch=$CI_BUILD_REF_NAME
