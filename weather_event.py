@@ -805,15 +805,14 @@ except (KeyboardInterrupt, SystemExit):
     BootMessage("Shutting down scheduler")
     scheduler.shutdown()
     if config.getboolean('Output', 'PYWWS_PUBLISH'):
-        print "Flushing data"
+        print("Flushing data")
         ds.flush()
         dstatus.flush()
     if config.getboolean('Output', 'ADA_LCD'):
         AdaLcd.clear()
     if config.getboolean('Output', 'SENSEHAT_DISPLAY'):
         PiSenseHat.clear()
-    if config.getboolean('Sensors', 'ENOCEAN'):
-        if eoCommunicator.is_alive():
-            eoCommunicator.stop()
+    if config.getboolean('Sensors', 'ENOCEAN') and eoCommunicator.is_alive():
+        eoCommunicator.stop()
     BootMessage("Goodbye")
     logging.shutdown()
