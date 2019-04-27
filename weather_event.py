@@ -114,7 +114,7 @@ def EnOceanSensors(eoComms):
                         transmitter_id = packet.sender_hex
                         transmitter_name = MapSensor(transmitter_id)
                         log.info("EnOceanSensors: {0}({1}): {2:0.1f}".format(transmitter_name, transmitter_id, temp))
-                        for dummy in xrange(config.getint('EnOcean', 'ANTI_SMOOTHING')):
+                        for _ in xrange(config.getint('EnOcean', 'ANTI_SMOOTHING')):
                             Smoothing(transmitter_name, temp)
             except queue.Empty:
                 return
@@ -335,7 +335,7 @@ def on_mqtt_message(mqttc, userdata, msg):
     if topicParts[1] in devicemap:
         deviceID = devicemap[topicParts[1]]
         log.debug("Device: " + str(deviceID))
-        for dummy in xrange(config.getint('HOMIE_INPUT', 'ANTI_SMOOTHING')):
+        for _ in xrange(config.getint('HOMIE_INPUT', 'ANTI_SMOOTHING')):
             Smoothing(deviceID, float(msg.payload))
 
 
@@ -412,7 +412,7 @@ def Smoothing(channel, value):
     global readings
     if readings.get(channel, None) is None:
         log.debug("Init %s", channel)
-        readings[channel] = [config.getint('General', 'MININT') for dummy in xrange(config.getint('General', 'SMOOTHING')+1)]
+        readings[channel] = [config.getint('General', 'MININT') for _ in xrange(config.getint('General', 'SMOOTHING')+1)]
     for i in range(1, (config.getint('General', 'SMOOTHING'))):
         if readings[channel][i+1] == config.getint('General', 'MININT'):
             readings[channel][i+1] = value
