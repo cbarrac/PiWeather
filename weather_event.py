@@ -589,47 +589,47 @@ def WriteConsole():
         for reading in readings:
             value = readings[reading][0]
             try:
-                print "{0}: {1:0.1f}".format(reading, value),
+                print("{0}: {1:0.1f}".format(reading, value)),
             except Exception:
-                print "{0}: {1}".format(reading, value),
+                print("{0}: {1}".format(reading, value)),
     else:
         try:
-            print "TempIn: {0:0.1f}".format(readings[config.get('PYWWS', 'TEMP_IN_CHANNEL')][0]),
+            print("TempIn: {0:0.1f}".format(readings[config.get('PYWWS', 'TEMP_IN_CHANNEL')][0])),
         except Exception:
-            print "TempIn: x",
+            print("TempIn: x"),
         try:
-            print "TempOut: {0:0.1f}".format(readings[config.get('PYWWS', 'TEMP_OUT_CHANNEL')][0]),
+            print("TempOut: {0:0.1f}".format(readings[config.get('PYWWS', 'TEMP_OUT_CHANNEL')][0])),
         except Exception:
-            print "TempOut: x",
+            print("TempOut: x"),
         try:
-            print "HumIn: {0:0.0f}%".format(readings[config.get('PYWWS', 'HUM_IN_CHANNEL')][0]),
+            print("HumIn: {0:0.0f}%".format(readings[config.get('PYWWS', 'HUM_IN_CHANNEL')][0])),
         except Exception:
-            print "HumIn: x",
+            print("HumIn: x"),
         try:
-            print "HumOut: {0:0.0f}%".format(readings[config.get('PYWWS', 'HUM_OUT_CHANNEL')][0]),
+            print("HumOut: {0:0.0f}%".format(readings[config.get('PYWWS', 'HUM_OUT_CHANNEL')][0])),
         except Exception:
-            print "HumOut: x",
+            print("HumOut: x"),
         try:
-            print "Press: {0:0.0f}hPa".format(readings[config.get('PYWWS', 'ABS_PRESSURE_CHANNEL')][0]),
+            print("Press: {0:0.0f}hPa".format(readings[config.get('PYWWS', 'ABS_PRESSURE_CHANNEL')][0])),
         except Exception:
-            print "Press: x",
+            print("Press: x"),
         try:
-            print "Illum: {0:0.1f}".format(readings[config.get('PYWWS', 'ILLUMINANCE_CHANNEL')][0]),
+            print("Illum: {0:0.1f}".format(readings[config.get('PYWWS', 'ILLUMINANCE_CHANNEL')][0])),
         except Exception:
-            print "Illum: x",
+            print("Illum: x"),
         try:
-            print "IRLx: {0:0.1f}".format(readings[config.get('PYWWS', 'IR_CHANNEL')][0]),
+            print("IRLx: {0:0.1f}".format(readings[config.get('PYWWS', 'IR_CHANNEL')][0])),
         except Exception:
-            print "IRLx: x",
+            print("IRLx: x"),
         try:
-            print "UV: {0:0.1f}".format(readings[config.get('PYWWS', 'UV_CHANNEL')][0]),
+            print("UV: {0:0.1f}".format(readings[config.get('PYWWS', 'UV_CHANNEL')][0])),
         except Exception:
-            print "UV: x",
+            print("UV: x"),
         try:
-            print "Forecast: %s" % forecast_file_today,
+            print("Forecast: %s" % forecast_file_today),
         except Exception:
-            print "Forecast: x",
-    print
+            print("Forecast: x"),
+    print()
     log.debug("WriteConsole: Complete")
 
 
