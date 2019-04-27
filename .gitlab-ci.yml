@@ -6,4 +6,4 @@ codequality:
   script:
     - apt-get update; apt-get -y install wget; apt-get -y install unzip
     - wget ${SONAR_PATH}/sonar-scanner-cli-${SONAR_VERSION}-linux.zip; unzip sonar-scanner-cli-${SONAR_VERSION}-linux.zip -d /tmp
-    - /tmp/sonar-scanner-${SONAR_VERSION}-linux/bin/sonar-scanner -Dsonar.host.url=${SONAR_SCANNER} -Dsonar.projectKey=${SONAR_PROJECT} -Dsonar.login=$SONARQUBE_TOKEN -Dsonar.projectVersion=$CI_BUILD_ID -Dsonar.branch.name=$CI_BUILD_REF_NAME
+    - /tmp/sonar-scanner-${SONAR_VERSION}-linux/bin/sonar-scanner -Dsonar.host.url=${SONAR_SCANNER} -Dsonar.projectKey=${SONAR_PROJECT} -Dsonar.login=$SONARQUBE_TOKEN -Dsonar.projectVersion=$CI_BUILD_ID 
