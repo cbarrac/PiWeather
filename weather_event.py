@@ -321,14 +321,16 @@ def MqSendMultiple():
 
 
 def on_mqtt_connect(mqttc, userdata, flags, rc):
+    """Connect handler for MQTT Client - subscribe to topics."""
     log.info("MqttClient: Connect")
     topics = ast.literal_eval(config.get('HOMIE_INPUT', 'TOPICS'))
     for val in topics:
         log.debug("Subscribing to topic : " + val)
         mqttc.subscribe(val, 0)
 
+
 def on_mqtt_message(mqttc, userdata, msg):
-    """Event handler for receipt of an MQTT message"""
+    """Event handler for receipt of an MQTT message."""
     log.debug(msg.topic + " " + str(msg.payload))
     topicParts = re.split('/', msg.topic)
     devicemap = ast.literal_eval(config.get('HOMIE_INPUT', 'DEVICES'))
@@ -484,7 +486,7 @@ def Store(datastore):
 
 
 def WriteAdaLcd():
-    """"Write out status to the Ada LCD screen."""
+    """Write out status to the Ada LCD screen."""
     global AdaScreenNumber
     msg_success = False
     while not msg_success:
