@@ -768,7 +768,7 @@ if config.getboolean('Sensors', 'HOMIE'):
     mqttc.on_message = on_mqtt_message
     mqttc.on_connect = on_mqtt_connect
     mqttc.reconnect_delay_set(min_delay=1, max_delay=120)
-    mqttc.connect(config.get('HOMIE_INPUT', 'HOST'), port=config.getint('HOMIE_INPUT', 'PORT'), keepalive=config.getint('HOMIE_INPUT', 'TIMEOUT'))
+    mqttc.connect_async(config.get('HOMIE_INPUT', 'HOST'), port=config.getint('HOMIE_INPUT', 'PORT'), keepalive=config.getint('HOMIE_INPUT', 'TIMEOUT'))
 BootMessage("Waiting for Samples")
 Sample()
 BootMessage("Scheduling events...")
