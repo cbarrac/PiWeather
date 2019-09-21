@@ -535,16 +535,23 @@ def WriteAdaLcd():
             # ----------------
             elif AdaScreenNumber == 6:
                 AdaScreenNumber += 1
-                if readings.get('power/solar', None) is None:
-                    p_power_solar = "?"
-                    p_percent = "?"
+                if readings.get('power/battery_power', None) is None:
+                    p_power_battery = "?"
                 else:
-                    p_power_solar = "{0:0.0f}".format(readings['power/solar'][0])
-                    p_percent = readings['power/solar'][0] * 100 / config.getint('General', 'SOLAR_MAX')
-                    s_percent = "{0:0.0f}".format(p_percent)
-                    log.debug("p_power_solar: " + p_power_solar + " s_percent " + s_percent + "%")
-                    log.debug("solar_max: " + config.get('General', 'SOLAR_MAX'))
-                msg = FormatDisplay("Solar:" + p_power_solar + "W " + s_percent + "%", config.getint('Adafruit_LCD', 'LCD_WIDTH'), config.getint('Adafruit_LCD', 'LCD_HEIGHT'))
+                    p_power_battery = "{0:0.0f}".format(readings['power/battery_power'][0])
+                if readings.get('power/battery_charge', None) is None:
+                    p_charge_battery = "?"
+                else:
+                    p_charge_battery = "{0:0.0f}".format(readings['power/battery_charge'][0])
+                if readings.get('power/solar_power', None) is None:
+                    p_power_solar = "?"
+                else:
+                    p_power_solar = "{0:0.0f}".format(readings['power/solar_power'][0])
+                if readings.get('power/house_power', None) is None:
+                    p_power_house = "?"
+                else:
+                    p_power_house = "{0:0.0f}".format(readings['power/house_power'][0])
+                msg = FormatDisplay("B:" + p_power_battery + "W " + p_charge_battery + "% S:" + p_power_solar + "W L:" + p_power_house + "W", config.getint('Adafruit_LCD', 'LCD_WIDTH'), config.getint('Adafruit_LCD', 'LCD_HEIGHT'))
                 msg_success = True
             # ----------------
             else:
