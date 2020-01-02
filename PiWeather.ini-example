@@ -21,8 +21,16 @@ FORECAST_STATE_ID = IDV10753
 # Melbourne: IDV10753; Sydney: NSW_PT131; Canberra NSW_PT027
 FORECAST_AAC = VIC_PT042
 FORECAST_CHANNEL_TODAY = forecast/bom/today
+FORECAST_CHANNEL_TODAY_MAX = forecast/bom/today_max
+FORECAST_CHANNEL_TODAY_RAIN = forecast/bom/today_rain
 FORECAST_CHANNEL_TOMORROW = forecast/bom/tomorrow
+FORECAST_CHANNEL_TOMORROW_MIN = forecast/bom/tomorrow_min
+FORECAST_CHANNEL_TOMORROW_MAX = forecast/bom/tomorrow_max
+FORECAST_CHANNEL_TOMORROW_RAIN = forecast/bom/tomorrow_rain
 FORECAST_CHANNEL_DAYAFTER = forecast/bom/dayafter
+FORECAST_CHANNEL_DAYAFTER_MIN = forecast/bom/dayafter_min
+FORECAST_CHANNEL_DAYAFTER_MAX = forecast/bom/dayafter_max
+FORECAST_CHANNEL_DAYAFTER_RAIN = forecast/bom/dayafter_rain
 
 [Calibration]
 ALTITUDE=123

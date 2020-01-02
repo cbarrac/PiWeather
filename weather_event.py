@@ -184,13 +184,9 @@ def ForecastBoM():
                 rain_chance = "?"
             forecast_bom_today = "Max {0} {1} {2}".format(max_temp, rain_chance, forecast_text)
             log.info("ForecastBoM: Today: %s", forecast_bom_today)
-            try:
-                channel = config.get('BoM', 'FORECAST_CHANNEL_TODAY')
-                if readings.get(channel, None) is None:
-                    readings[channel] = [0]
-                readings[channel][0] = forecast_bom_today
-            except Exception:
-                log.exception("ForecastBoM: Could not populate today forecast to memory store")
+            StorePoint('BoM', 'FORECAST_CHANNEL_TODAY', forecast_bom_today)
+            StorePoint('BoM', 'FORECAST_CHANNEL_TODAY_MAX', max_temp)
+            StorePoint('BoM', 'FORECAST_CHANNEL_TODAY_RAIN', rain_chance)
             # Tomorrow
             try:
                 min_temp = area._children[1].find("*[@type='air_temperature_minimum']").text
@@ -210,13 +206,10 @@ def ForecastBoM():
                 rain_chance = "?"
             forecast_bom_tomorrow = "{0}-{1} {2} {3}".format(min_temp, max_temp, rain_chance, forecast_text)
             log.info("ForecastBoM: Tomorrow: %s", forecast_bom_tomorrow)
-            try:
-                channel = config.get('BoM', 'FORECAST_CHANNEL_TOMORROW')
-                if readings.get(channel, None) is None:
-                    readings[channel] = [0]
-                readings[channel][0] = forecast_bom_tomorrow
-            except Exception:
-                log.exception("ForecastBoM: Could not populate tomorrow forecast to memory store")
+            StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW', forecast_bom_tomorrow)
+            StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW_MIN', min_temp)
+            StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW_MAX', max_temp)
+            StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW_RAIN', rain_chance)
             # Day after tomorrow
             try:
                 min_temp = area._children[2].find("*[@type='air_temperature_minimum']").text
@@ -236,13 +229,10 @@ def ForecastBoM():
                 rain_chance = "?"
             forecast_bom_dayafter = "{0}-{1} {2} {3}".format(min_temp, max_temp, rain_chance, forecast_text)
             log.info("ForecastBoM: Day After Tomorrow: %s", forecast_bom_dayafter)
-            try:
-                channel = config.get('BoM', 'FORECAST_CHANNEL_DAYAFTER')
-                if readings.get(channel, None) is None:
-                    readings[channel] = [0]
-                readings[channel][0] = forecast_bom_dayafter
-            except Exception:
-                log.exception("ForecastBoM: Could not populate day after tomorrow forecast to memory store")
+            StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER', forecast_bom_dayafter)
+            StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER_MIN', min_temp)
+            StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER_MAX', max_temp)
+            StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER_RAIN', rain_chance)
             return (forecast_bom_today, forecast_bom_tomorrow, forecast_bom_dayafter)
     return (forecast_bom_today, forecast_bom_tomorrow, forecast_bom_dayafter)
 
@@ -257,13 +247,7 @@ def ForecastFile():
             forecast_file_today = foreFile.read()
     except Exception:
         log.exception("ForecastFile: Error reading forecast from file")
-    try:
-        channel = config.get('ForecastFile', 'FORECAST_CHANNEL')
-        if readings.get(channel, None) is None:
-            readings[channel] = [0]
-        readings[channel][0] = forecast_file_today
-    except Exception:
-        log.exception("ForecastFile: Could not populate forecast to memory store")
+    StorePoint('ForecastFile', 'FORECAST_CHANNEL', forecast_file_today)
     log.info("ForecastFile: \"%s\"", forecast_file_today)
     log.debug("ForecastFile: Complete")
 
@@ -484,6 +468,15 @@ def Store(datastore):
         log.exception("Store: Error pushing data")
     log.debug("Store: Complete")
 
+
+def StorePoint(category, channel, value):
+    try:
+        channel = config.get(category, channel)
+        if readings.get(channel, None) is None:
+            readings[channel] = [0]
+        readings[channel][0] = value
+    except Exception:
+        log.exception("Could not store reading: {0} - {1}: {2}".format(category, channel, value))
 
 def WriteAdaLcd():
     """Write out status to the Ada LCD screen."""
