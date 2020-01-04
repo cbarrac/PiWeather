@@ -172,6 +172,7 @@ def ForecastBoM():
             # Today
             try:
                 max_temp = area._children[0].find("*[@type='air_temperature_maximum']").text
+                StorePoint('BoM', 'FORECAST_CHANNEL_TODAY_MAX', max_temp)
             except Exception:
                 max_temp = "?"
             try:
@@ -180,20 +181,21 @@ def ForecastBoM():
                 forecast_text = "?"
             try:
                 rain_chance = area._children[0].find("*[@type='probability_of_precipitation']").text
+                StorePoint('BoM', 'FORECAST_CHANNEL_TODAY_RAIN', rain_chance)
             except Exception:
                 rain_chance = "?"
             forecast_bom_today = "Max {0} {1} {2}".format(max_temp, rain_chance, forecast_text)
             log.info("ForecastBoM: Today: %s", forecast_bom_today)
             StorePoint('BoM', 'FORECAST_CHANNEL_TODAY', forecast_bom_today)
-            StorePoint('BoM', 'FORECAST_CHANNEL_TODAY_MAX', max_temp)
-            StorePoint('BoM', 'FORECAST_CHANNEL_TODAY_RAIN', rain_chance)
             # Tomorrow
             try:
                 min_temp = area._children[1].find("*[@type='air_temperature_minimum']").text
+                StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW_MIN', min_temp)
             except Exception:
                 min_temp = "?"
             try:
                 max_temp = area._children[1].find("*[@type='air_temperature_maximum']").text
+                StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW_MAX', max_temp)
             except Exception:
                 max_temp = "?"
             try:
@@ -202,21 +204,21 @@ def ForecastBoM():
                 forecast_text = "?"
             try:
                 rain_chance = area._children[1].find("*[@type='probability_of_precipitation']").text
+                StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW_RAIN', rain_chance)
             except Exception:
                 rain_chance = "?"
             forecast_bom_tomorrow = "{0}-{1} {2} {3}".format(min_temp, max_temp, rain_chance, forecast_text)
             log.info("ForecastBoM: Tomorrow: %s", forecast_bom_tomorrow)
             StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW', forecast_bom_tomorrow)
-            StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW_MIN', min_temp)
-            StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW_MAX', max_temp)
-            StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW_RAIN', rain_chance)
             # Day after tomorrow
             try:
                 min_temp = area._children[2].find("*[@type='air_temperature_minimum']").text
+                StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER_MIN', min_temp)
             except Exception:
                 min_temp = "?"
             try:
                 max_temp = area._children[2].find("*[@type='air_temperature_maximum']").text
+                StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER_MAX', max_temp)
             except Exception:
                 max_temp = "?"
             try:
@@ -225,14 +227,12 @@ def ForecastBoM():
                 forecast_text = "?"
             try:
                 rain_chance = area._children[2].find("*[@type='probability_of_precipitation']").text
+                StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER_RAIN', rain_chance)
             except Exception:
                 rain_chance = "?"
             forecast_bom_dayafter = "{0}-{1} {2} {3}".format(min_temp, max_temp, rain_chance, forecast_text)
             log.info("ForecastBoM: Day After Tomorrow: %s", forecast_bom_dayafter)
             StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER', forecast_bom_dayafter)
-            StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER_MIN', min_temp)
-            StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER_MAX', max_temp)
-            StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER_RAIN', rain_chance)
             return (forecast_bom_today, forecast_bom_tomorrow, forecast_bom_dayafter)
     return (forecast_bom_today, forecast_bom_tomorrow, forecast_bom_dayafter)
 
