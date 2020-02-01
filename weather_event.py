@@ -181,10 +181,12 @@ def ForecastBoM():
                 forecast_text = "?"
             try:
                 rain_chance = area._children[0].find("*[@type='probability_of_precipitation']").text
+                if rain_chance[-1] == '%':
+                    rain_chance = rain_chance[:-1]
                 StorePoint('BoM', 'FORECAST_CHANNEL_TODAY_RAIN', rain_chance)
             except Exception:
                 rain_chance = "?"
-            forecast_bom_today = "Max {0} {1} {2}".format(max_temp, rain_chance, forecast_text)
+            forecast_bom_today = "Max {0} {1}% {2}".format(max_temp, rain_chance, forecast_text)
             log.info("ForecastBoM: Today: %s", forecast_bom_today)
             StorePoint('BoM', 'FORECAST_CHANNEL_TODAY', forecast_bom_today)
             # Tomorrow
@@ -204,10 +206,12 @@ def ForecastBoM():
                 forecast_text = "?"
             try:
                 rain_chance = area._children[1].find("*[@type='probability_of_precipitation']").text
+                if rain_chance[-1] == '%':
+                    rain_chance = rain_chance[:-1]
                 StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW_RAIN', rain_chance)
             except Exception:
                 rain_chance = "?"
-            forecast_bom_tomorrow = "{0}-{1} {2} {3}".format(min_temp, max_temp, rain_chance, forecast_text)
+            forecast_bom_tomorrow = "{0}-{1} {2}% {3}".format(min_temp, max_temp, rain_chance, forecast_text)
             log.info("ForecastBoM: Tomorrow: %s", forecast_bom_tomorrow)
             StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW', forecast_bom_tomorrow)
             # Day after tomorrow
@@ -227,10 +231,12 @@ def ForecastBoM():
                 forecast_text = "?"
             try:
                 rain_chance = area._children[2].find("*[@type='probability_of_precipitation']").text
+                if rain_chance[-1] == '%':
+                    rain_chance = rain_chance[:-1]
                 StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER_RAIN', rain_chance)
             except Exception:
                 rain_chance = "?"
-            forecast_bom_dayafter = "{0}-{1} {2} {3}".format(min_temp, max_temp, rain_chance, forecast_text)
+            forecast_bom_dayafter = "{0}-{1} {2}% {3}".format(min_temp, max_temp, rain_chance, forecast_text)
             log.info("ForecastBoM: Day After Tomorrow: %s", forecast_bom_dayafter)
             StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER', forecast_bom_dayafter)
             return (forecast_bom_today, forecast_bom_tomorrow, forecast_bom_dayafter)
