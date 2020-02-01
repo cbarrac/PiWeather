@@ -333,14 +333,16 @@ def on_mqtt_message(mqttc, userdata, msg):
 
 def ReadConfig():
     """Read configuration from disk."""
+    print("Reading configuration")
     global config
     lconfig = configparser.ConfigParser()
     lconfig.read(CONFIG_FILE)
     try:
-        lconfig.get('Calibration', 'ALTITUDE_PRESSURE_OFFSET', 1)
+        lconfig.getfloat('Calibration', 'ALTITUDE_PRESSURE_OFFSET')
     except Exception:
         PressureOffset = AltitudeOffset(lconfig.getint('Calibration', 'ALTITUDE'))
-        lconfig.set('Calibration', 'ALTITUDE_PRESSURE_OFFSET', PressureOffset)
+        log.info("Altitude Calibration calculated at '{0}'".format(PressureOffset))
+        lconfig.set('Calibration', 'ALTITUDE_PRESSURE_OFFSET', str(PressureOffset))
     config = lconfig
 
 
@@ -360,7 +362,7 @@ def Sample():
         try:
             Smoothing(config.get('BME280', 'TEMPERATURE_CHANNEL'), (BmeSensor.read_temperature() + config.getfloat('Calibration', 'BME280_TEMP_IN')))
             # Note: read_pressure returns Pa, divide by 100 for hectopascals (hPa)
-            Smoothing(config.get('BME280', 'PRESSURE_CHANNEL'), ((BmeSensor.read_pressure()/100.0) + config.get('Calibration', 'ALTITUDE_PRESSURE_OFFSET', 1) + config.getfloat('Calibration', 'BME280_PRESSURE')))
+            Smoothing(config.get('BME280', 'PRESSURE_CHANNEL'), ((BmeSensor.read_pressure()/100.0) + config.getfloat('Calibration', 'ALTITUDE_PRESSURE_OFFSET') + config.getfloat('Calibration', 'BME280_PRESSURE')))
             Smoothing(config.get('BME280', 'HUMIDITY_CHANNEL'), (BmeSensor.read_humidity() + config.getfloat('Calibration', 'BME280_HUM_IN')))
         except Exception:
             log.exception("Error reading BME280: ")
@@ -374,7 +376,7 @@ def Sample():
             log.exception("Error reading BMP085")
     if config.getboolean('Sensors', 'SENSEHAT'):
         try:
-            Smoothing(config.get('SENSEHAT', 'PRESSURE_CHANNEL'), (PiSenseHat.get_pressure() + config.get('Calibration', 'ALTITUDE_PRESSURE_OFFSET', 1) + config.getfloat('Calibration', 'SENSEHAT_PRESSURE')))
+            Smoothing(config.get('SENSEHAT', 'PRESSURE_CHANNEL'), (PiSenseHat.get_pressure() + config.getfloat('Calibration', 'ALTITUDE_PRESSURE_OFFSET') + config.getfloat('Calibration', 'SENSEHAT_PRESSURE')))
             Smoothing(config.get('SENSEHAT', 'HUMIDITY_CHANNEL'), (PiSenseHat.get_humidity() + config.getfloat('Calibration', 'SENSEHAT_HUM_IN')))
             Smoothing(config.get('SENSEHAT', 'TEMPERATURE_CHANNEL'), (PiSenseHat.get_temperature_from_pressure() + config.getfloat('Calibration', 'SENSEHAT_TEMP_IN')))
         except Exception:
