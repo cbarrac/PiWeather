@@ -5,7 +5,7 @@ from datetime import datetime
 try:
     import configparser
 except ImportError:
-    import ConfigParser as configparser
+    import configparser as configparser
 import logging
 import math
 from multiprocessing import Lock
@@ -114,7 +114,7 @@ def EnOceanSensors(eoComms):
                         transmitter_id = packet.sender_hex
                         transmitter_name = MapSensor(transmitter_id)
                         log.info("EnOceanSensors: {0}({1}): {2:0.1f}".format(transmitter_name, transmitter_id, temp))
-                        for _ in xrange(config.getint('EnOcean', 'ANTI_SMOOTHING')):
+                        for _ in range(config.getint('EnOcean', 'ANTI_SMOOTHING')):
                             Smoothing(transmitter_name, temp)
             except queue.Empty:
                 return
@@ -152,7 +152,7 @@ def ForecastBoM():
     global forecast_bom_tomorrow
     global forecast_bom_dayafter
     try:
-        response = urllib2.urlopen(Forecast_URL, timeout=180)
+        response = urllib.request.urlopen(Forecast_URL, timeout=180)
         ForecastXML = response.read()
     except Exception:
         log.exception("ForecastBoM: Error downloading forecast file:")
@@ -162,84 +162,91 @@ def ForecastBoM():
     except Exception:
         log.exception("ForecastBoM: Error parsing forecast file:")
         return (forecast_bom_today, forecast_bom_tomorrow, forecast_bom_dayafter)
+    # Today
     try:
-        Forecasts = ForecastTree.find('forecast')
+        xmlDay = ForecastTree.find("./forecast/area[@aac='" + FORECAST_AAC + "']/forecast-period[@index='0']")
+    except Exception:
+        log.exception("ForecastBoM: Error finding area element for today:")
+    try:
+        max_temp = xmlDay.find("*[@type='air_temperature_maximum']").text
+        StorePoint('BoM', 'FORECAST_CHANNEL_TODAY_MAX', max_temp)
     except Exception:
         log.exception("ForecastBoM: Error finding forecast element:")
-        return (forecast_bom_today, forecast_bom_tomorrow, forecast_bom_dayafter)
-    for area in Forecasts:
-        if area.attrib['aac'] == FORECAST_AAC:
-            # Today
-            try:
-                max_temp = area._children[0].find("*[@type='air_temperature_maximum']").text
-                StorePoint('BoM', 'FORECAST_CHANNEL_TODAY_MAX', max_temp)
-            except Exception:
-                max_temp = "?"
-            try:
-                forecast_text = area._children[0].find("*[@type='precis']").text
-            except Exception:
-                forecast_text = "?"
-            try:
-                rain_chance = area._children[0].find("*[@type='probability_of_precipitation']").text
-                if rain_chance[-1] == '%':
-                    rain_chance = rain_chance[:-1]
-                StorePoint('BoM', 'FORECAST_CHANNEL_TODAY_RAIN', rain_chance)
-            except Exception:
-                rain_chance = "?"
-            forecast_bom_today = "Max {0} {1}% {2}".format(max_temp, rain_chance, forecast_text)
-            log.info("ForecastBoM: Today: %s", forecast_bom_today)
-            StorePoint('BoM', 'FORECAST_CHANNEL_TODAY', forecast_bom_today)
-            # Tomorrow
-            try:
-                min_temp = area._children[1].find("*[@type='air_temperature_minimum']").text
-                StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW_MIN', min_temp)
-            except Exception:
-                min_temp = "?"
-            try:
-                max_temp = area._children[1].find("*[@type='air_temperature_maximum']").text
-                StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW_MAX', max_temp)
-            except Exception:
-                max_temp = "?"
-            try:
-                forecast_text = area._children[1].find("*[@type='precis']").text
-            except Exception:
-                forecast_text = "?"
-            try:
-                rain_chance = area._children[1].find("*[@type='probability_of_precipitation']").text
-                if rain_chance[-1] == '%':
-                    rain_chance = rain_chance[:-1]
-                StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW_RAIN', rain_chance)
-            except Exception:
-                rain_chance = "?"
-            forecast_bom_tomorrow = "{0}-{1} {2}% {3}".format(min_temp, max_temp, rain_chance, forecast_text)
-            log.info("ForecastBoM: Tomorrow: %s", forecast_bom_tomorrow)
-            StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW', forecast_bom_tomorrow)
-            # Day after tomorrow
-            try:
-                min_temp = area._children[2].find("*[@type='air_temperature_minimum']").text
-                StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER_MIN', min_temp)
-            except Exception:
-                min_temp = "?"
-            try:
-                max_temp = area._children[2].find("*[@type='air_temperature_maximum']").text
-                StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER_MAX', max_temp)
-            except Exception:
-                max_temp = "?"
-            try:
-                forecast_text = area._children[2].find("*[@type='precis']").text
-            except Exception:
-                forecast_text = "?"
-            try:
-                rain_chance = area._children[2].find("*[@type='probability_of_precipitation']").text
-                if rain_chance[-1] == '%':
-                    rain_chance = rain_chance[:-1]
-                StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER_RAIN', rain_chance)
-            except Exception:
-                rain_chance = "?"
-            forecast_bom_dayafter = "{0}-{1} {2}% {3}".format(min_temp, max_temp, rain_chance, forecast_text)
-            log.info("ForecastBoM: Day After Tomorrow: %s", forecast_bom_dayafter)
-            StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER', forecast_bom_dayafter)
-            return (forecast_bom_today, forecast_bom_tomorrow, forecast_bom_dayafter)
+        max_temp = "?"
+    try:
+        forecast_text = xmlDay.find("*[@type='precis']").text
+    except Exception:
+        log.exception("ForecastBoM: Error finding forecast element:")
+        forecast_text = "?"
+    try:
+        rain_chance = xmlDay.find("*[@type='probability_of_precipitation']").text
+        if rain_chance[-1] == '%':
+            rain_chance = rain_chance[:-1]
+        StorePoint('BoM', 'FORECAST_CHANNEL_TODAY_RAIN', rain_chance)
+    except Exception:
+        log.exception("ForecastBoM: Error finding forecast element:")
+        rain_chance = "?"
+    forecast_bom_today = "Max {0} {1}% {2}".format(max_temp, rain_chance, forecast_text)
+    log.info("ForecastBoM: Today: %s", forecast_bom_today)
+    StorePoint('BoM', 'FORECAST_CHANNEL_TODAY', forecast_bom_today)
+    # Tomorrow
+    try:
+        xmlDay = ForecastTree.find("./forecast/area[@aac='" + FORECAST_AAC + "']/forecast-period[@index='1']")
+    except Exception:
+        log.exception("ForecastBoM: Error finding area element for tomorrow:")
+    try:
+        min_temp = xmlDay.find("*[@type='air_temperature_minimum']").text
+        StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW_MIN', min_temp)
+    except Exception:
+        min_temp = "?"
+    try:
+        max_temp = xmlDay.find("*[@type='air_temperature_maximum']").text
+        StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW_MAX', max_temp)
+    except Exception:
+        max_temp = "?"
+    try:
+        forecast_text = xmlDay.find("*[@type='precis']").text
+    except Exception:
+        forecast_text = "?"
+    try:
+        rain_chance = xmlDay.find("*[@type='probability_of_precipitation']").text
+        if rain_chance[-1] == '%':
+            rain_chance = rain_chance[:-1]
+        StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW_RAIN', rain_chance)
+    except Exception:
+        rain_chance = "?"
+    forecast_bom_tomorrow = "{0}-{1} {2}% {3}".format(min_temp, max_temp, rain_chance, forecast_text)
+    log.info("ForecastBoM: Tomorrow: %s", forecast_bom_tomorrow)
+    StorePoint('BoM', 'FORECAST_CHANNEL_TOMORROW', forecast_bom_tomorrow)
+    # Day after tomorrow
+    try:
+        xmlDay = ForecastTree.find("./forecast/area[@aac='" + FORECAST_AAC + "']/forecast-period[@index='2']")
+    except Exception:
+        log.exception("ForecastBoM: Error finding area element for day after tomorrow:")
+    try:
+        min_temp = xmlDay.find("*[@type='air_temperature_minimum']").text
+        StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER_MIN', min_temp)
+    except Exception:
+        min_temp = "?"
+    try:
+        max_temp = xmlDay.find("*[@type='air_temperature_maximum']").text
+        StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER_MAX', max_temp)
+    except Exception:
+        max_temp = "?"
+    try:
+        forecast_text = xmlDay.find("*[@type='precis']").text
+    except Exception:
+        forecast_text = "?"
+    try:
+        rain_chance = xmlDay.find("*[@type='probability_of_precipitation']").text
+        if rain_chance[-1] == '%':
+            rain_chance = rain_chance[:-1]
+        StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER_RAIN', rain_chance)
+    except Exception:
+        rain_chance = "?"
+    forecast_bom_dayafter = "{0}-{1} {2}% {3}".format(min_temp, max_temp, rain_chance, forecast_text)
+    log.info("ForecastBoM: Day After Tomorrow: %s", forecast_bom_dayafter)
+    StorePoint('BoM', 'FORECAST_CHANNEL_DAYAFTER', forecast_bom_dayafter)
     return (forecast_bom_today, forecast_bom_tomorrow, forecast_bom_dayafter)
 
 
@@ -327,7 +334,7 @@ def on_mqtt_message(mqttc, userdata, msg):
     if topicParts[1] in devicemap:
         deviceID = devicemap[topicParts[1]]
         log.debug("Device: " + str(deviceID))
-        for _ in xrange(config.getint('HOMIE_INPUT', 'ANTI_SMOOTHING')):
+        for _ in range(config.getint('HOMIE_INPUT', 'ANTI_SMOOTHING')):
             Smoothing(deviceID, float(msg.payload))
 
 
@@ -406,7 +413,7 @@ def Smoothing(channel, value):
     global readings
     if readings.get(channel, None) is None:
         log.debug("Init %s", channel)
-        readings[channel] = [config.getint('General', 'MININT') for _ in xrange(config.getint('General', 'SMOOTHING')+1)]
+        readings[channel] = [config.getint('General', 'MININT') for _ in range(config.getint('General', 'SMOOTHING')+1)]
     for i in range(1, (config.getint('General', 'SMOOTHING'))):
         if readings[channel][i+1] == config.getint('General', 'MININT'):
             readings[channel][i+1] = value
@@ -594,51 +601,51 @@ def WriteAdaLcd():
 def WriteConsole():
     """Write out readings to the console."""
     log.debug("WriteConsole: start")
-    print(time.ctime()),
+    print((time.ctime()), end=' ')
     if config.getboolean('Output', 'BRUTAL_VIEW'):
         for reading in readings:
             value = readings[reading][0]
             try:
-                print("{0}: {1:0.1f}".format(reading, value)),
+                print(("{0}: {1:0.1f}".format(reading, value)), end=' ')
             except Exception:
-                print("{0}: {1}".format(reading, value)),
+                print(("{0}: {1}".format(reading, value)), end=' ')
     else:
         try:
-            print("TempIn: {0:0.1f}".format(readings[config.get('PYWWS', 'TEMP_IN_CHANNEL')][0])),
+            print(("TempIn: {0:0.1f}".format(readings[config.get('PYWWS', 'TEMP_IN_CHANNEL')][0])), end=' ')
         except Exception:
-            print("TempIn: x"),
+            print(("TempIn: x"), end=' ')
         try:
-            print("TempOut: {0:0.1f}".format(readings[config.get('PYWWS', 'TEMP_OUT_CHANNEL')][0])),
+            print(("TempOut: {0:0.1f}".format(readings[config.get('PYWWS', 'TEMP_OUT_CHANNEL')][0])), end=' ')
         except Exception:
-            print("TempOut: x"),
+            print(("TempOut: x"), end=' ')
         try:
-            print("HumIn: {0:0.0f}%".format(readings[config.get('PYWWS', 'HUM_IN_CHANNEL')][0])),
+            print(("HumIn: {0:0.0f}%".format(readings[config.get('PYWWS', 'HUM_IN_CHANNEL')][0])), end=' ')
         except Exception:
-            print("HumIn: x"),
+            print(("HumIn: x"), end=' ')
         try:
-            print("HumOut: {0:0.0f}%".format(readings[config.get('PYWWS', 'HUM_OUT_CHANNEL')][0])),
+            print(("HumOut: {0:0.0f}%".format(readings[config.get('PYWWS', 'HUM_OUT_CHANNEL')][0])), end=' ')
         except Exception:
-            print("HumOut: x"),
+            print(("HumOut: x"), end=' ')
         try:
-            print("Press: {0:0.0f}hPa".format(readings[config.get('PYWWS', 'ABS_PRESSURE_CHANNEL')][0])),
+            print(("Press: {0:0.0f}hPa".format(readings[config.get('PYWWS', 'ABS_PRESSURE_CHANNEL')][0])), end=' ')
         except Exception:
-            print("Press: x"),
+            print(("Press: x"), end=' ')
         try:
-            print("Illum: {0:0.1f}".format(readings[config.get('PYWWS', 'ILLUMINANCE_CHANNEL')][0])),
+            print(("Illum: {0:0.1f}".format(readings[config.get('PYWWS', 'ILLUMINANCE_CHANNEL')][0])), end=' ')
         except Exception:
-            print("Illum: x"),
+            print(("Illum: x"), end=' ')
         try:
-            print("IRLx: {0:0.1f}".format(readings[config.get('PYWWS', 'IR_CHANNEL')][0])),
+            print(("IRLx: {0:0.1f}".format(readings[config.get('PYWWS', 'IR_CHANNEL')][0])), end=' ')
         except Exception:
-            print("IRLx: x"),
+            print(("IRLx: x"), end=' ')
         try:
-            print("UV: {0:0.1f}".format(readings[config.get('PYWWS', 'UV_CHANNEL')][0])),
+            print(("UV: {0:0.1f}".format(readings[config.get('PYWWS', 'UV_CHANNEL')][0])), end=' ')
         except Exception:
-            print("UV: x"),
+            print(("UV: x"), end=' ')
         try:
-            print("Forecast: %s" % forecast_file_today),
+            print(("Forecast: %s" % forecast_file_today), end=' ')
         except Exception:
-            print("Forecast: x"),
+            print(("Forecast: x"), end=' ')
     print()
     log.debug("WriteConsole: Complete")
 
@@ -713,9 +720,9 @@ if config.getboolean('Sensors', 'ENOCEAN'):
     try:
         import queue
     except ImportError:
-        import Queue as queue
+        import queue as queue
 if config.getboolean('Sensors', 'FORECAST_BOM'):
-    import urllib2
+    import urllib.request, urllib.error, urllib.parse
     import xml.etree.ElementTree as ElementTree
 if config.getboolean('Sensors', 'HOMIE'):
     import paho.mqtt.client as mqtt

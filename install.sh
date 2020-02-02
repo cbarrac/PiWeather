@@ -3,6 +3,7 @@ apt-get -y install python-pip python-dev build-essential python-smbus git python
 pip install APScheduler
 pip install numpy
 pip install pyusb
+pip install RPi.GPIO
 # Optional
 pip install enocean
 pip install paho-mqtt
