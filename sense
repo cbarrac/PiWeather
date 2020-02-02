@@ -1,0 +1,7 @@
+#!/bin/bash
+dtparam i2c_arm=on
+modprobe i2c-dev
+/sbin/modprobe -v -a i2c_dev i2c_bcm2708
+/usr/sbin/i2cdetect -y 1
+cd /opt/PiWeather
+/usr/bin/python3 ./weather_event.py3 2> error.log

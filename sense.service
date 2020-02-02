@@ -1,0 +1,8 @@
+[Unit]
+Description=Weather Sensing
+
+[Service]
+ExecStart=/usr/local/bin/sense
+
+[Install]
+WantedBy=multi-user.target
