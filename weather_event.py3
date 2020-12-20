@@ -56,8 +56,11 @@ def BootMessage(msg):
             AdaLcd.set_color(0.5, 0.5, 0.5)
             msg = FormatDisplay(msg, config.getint('Adafruit_LCD', 'LCD_WIDTH'), config.getint('Adafruit_LCD', 'LCD_HEIGHT'))
             AdaLcd.message(msg)
-        except Exception:
+        except (NameError):
+            log.debug("LCD not initialised")
+        except Exception as e:
             print("Could not write to LCD")
+            print(e);
 
 
 def DewPoint(RH, TempC):
@@ -701,42 +704,85 @@ ReadConfig()
 # Optional
 ########
 log.setLevel(config.getint('General', 'LOG_LEVEL'))
+BootMessage("PiWeather Starting")
+BootMessage("Outputs:")
 if config.getboolean('Output', 'ADA_LCD'):
-    import Adafruit_CharLCD
-    AdaLcd = Adafruit_CharLCD.Adafruit_CharLCDPlate()
-    BootMessage("PiWeather Starting")
+    BootMessage("...Adafruit LCD")
+    try:
+        import Adafruit_CharLCD
+        AdaLcd = Adafruit_CharLCD.Adafruit_CharLCDPlate()
+    except Exception as e:
+        log.error("Loading Adafruit LCD.", e)
+if config.getboolean('Output', 'MQTT_PUBLISH'):
+    BootMessage("...MQTT")
+    try:
+        import paho.mqtt.publish as publish
+    except Exception as e:
+        log.error("Loading MQTT output.", e)
+if config.getboolean('Output', 'PYWWS_PUBLISH'):
+    BootMessage("...PyWWS")
+    try:
+        from pywws import DataStore
+    except Exception as e:
+        log.error("Loading PyWWS.", e)
+if config.getboolean('Sensors', 'SENSEHAT') or config.getboolean('Output', 'SENSEHAT_DISPLAY'):
+    BootMessage("...SenseHat")
+    try:
+        from sense_hat import SenseHat
+        PiSenseHat = SenseHat()
+    except Exception as e:
+        log.error("Loading PyWWS.", e)
+
+BootMessage("Inputs:")
 if config.getboolean('Sensors', 'BME280'):
-    import Adafruit_BME280
-    BmeSensor = Adafruit_BME280.BME280(t_mode=Adafruit_BME280.BME280_OSAMPLE_8, p_mode=Adafruit_BME280.BME280_OSAMPLE_8, h_mode=Adafruit_BME280.BME280_OSAMPLE_8)
+    BootMessage("...BME280")
+    try:
+        import Adafruit_BME280
+        BmeSensor = Adafruit_BME280.BME280(t_mode=Adafruit_BME280.BME280_OSAMPLE_8, p_mode=Adafruit_BME280.BME280_OSAMPLE_8, h_mode=Adafruit_BME280.BME280_OSAMPLE_8)
+    except Exception as e:
+        log.error("Loading BME280.", e)
 if config.getboolean('Sensors', 'BMP085'):
-    import Adafruit_BMP.BMP085
-    BmpSensor = Adafruit_BMP.BMP085()
+    BootMessage("...BMP085")
+    try:
+        import Adafruit_BMP.BMP085
+        BmpSensor = Adafruit_BMP.BMP085()
+    except Exception as e:
+        log.error("Loading BME280.", e)
 if config.getboolean('Sensors', 'ENOCEAN'):
-    from enocean.communicators.serialcommunicator import SerialCommunicator as eoSerialCommunicator
-    import enocean.protocol.packet
-    from enocean.protocol.constants import PACKET as EOPACKET, RORG as EORORG
-    import enocean.utils
-    from enocean.consolelogger import init_logging
+    BootMessage("...EnOcean")
+    try:
+        from enocean.communicators.serialcommunicator import SerialCommunicator as eoSerialCommunicator
+        import enocean.protocol.packet
+        from enocean.protocol.constants import PACKET as EOPACKET, RORG as EORORG
+        import enocean.utils
+        from enocean.consolelogger import init_logging
+    except Exception as e:
+        log.error("Loading EnOcean.", e)
     try:
         import queue
     except ImportError:
         import queue as queue
 if config.getboolean('Sensors', 'FORECAST_BOM'):
-    import urllib.request, urllib.error, urllib.parse
-    import xml.etree.ElementTree as ElementTree
+    BootMessage("...ForecastBoM")
+    try:
+        import urllib.request, urllib.error, urllib.parse
+        import xml.etree.ElementTree as ElementTree
+    except Exception as e:
+        log.error("Loading ForecastBoM.", e)
 if config.getboolean('Sensors', 'HOMIE'):
-    import paho.mqtt.client as mqtt
-    import re
-if config.getboolean('Output', 'MQTT_PUBLISH'):
-    import paho.mqtt.publish as publish
-if config.getboolean('Output', 'PYWWS_PUBLISH'):
-    from pywws import DataStore
-if config.getboolean('Sensors', 'SENSEHAT') or config.getboolean('Output', 'SENSEHAT_DISPLAY'):
-    from sense_hat import SenseHat
-    PiSenseHat = SenseHat()
+    BootMessage("...MQTT")
+    try:
+        import paho.mqtt.client as mqtt
+        import re
+    except Exception as e:
+        log.error("Loading MQTT Input.", e)
 if config.getboolean('Sensors', 'SI1145'):
-    import SI1145.SI1145 as SI1145
-    SiSensor = SI1145.SI1145()
+    BootMessage("...SI1145")
+    try:
+        import SI1145.SI1145 as SI1145
+        SiSensor = SI1145.SI1145()
+    except Exception as e:
+        log.error("Loading MQTT Input.", e)
 
 ########
 # Main
