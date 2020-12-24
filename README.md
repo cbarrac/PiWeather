@@ -1,6 +1,9 @@
 # Raspberry Pi SenseHat + pywws
 
 [![SonarCloud](https://sonarcloud.io/images/project_badges/sonarcloud-white.svg)](https://sonarcloud.io/dashboard?id=cbarrac_PiWeather)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=cbarrac_PiWeather&metric=vulnerabilities)](https://sonarcloud.io/dashboard?id=cbarrac_PiWeather)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=cbarrac_PiWeather&metric=security_rating)](https://sonarcloud.io/dashboard?id=cbarrac_PiWeather)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=cbarrac_PiWeather&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=cbarrac_PiWeather)
 
 Read Temperature/Pressure/Humidity from a Raspberry Pi [SenseHat](https://www.raspberrypi.org/products/sense-hat/)
 
