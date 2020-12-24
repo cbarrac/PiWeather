@@ -1,4 +1,7 @@
 # Raspberry Pi SenseHat + pywws
+
+[![SonarCloud](https://sonarcloud.io/images/project_badges/sonarcloud-white.svg)](https://sonarcloud.io/dashboard?id=cbarrac_PiWeather)
+
 Read Temperature/Pressure/Humidity from a Raspberry Pi [SenseHat](https://www.raspberrypi.org/products/sense-hat/)
 
 Write the data to a [pywws](https://github.com/jim-easterbrook/pywws) DataStore
