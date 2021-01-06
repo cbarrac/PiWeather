@@ -66,3 +66,7 @@ PiWeather.ini
 
 # Ignore SonarQube
 .scannerwork/
+
+# OpenFaaS
+OpenFaaS/build/
+OpenFaaS/template/
