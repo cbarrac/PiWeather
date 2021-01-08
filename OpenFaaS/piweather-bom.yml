@@ -1,0 +1,15 @@
+version: 1.0
+provider:
+  name: openfaas
+  gateway: ${OPENFAAS_URL}
+functions:
+  piweather-bom:
+    lang: python3
+    handler: ./piweather-bom
+    image: ${OPENFAAS_PREFIX}/piweather-bom:latest
+    environment:
+        FORECAST_BASE_URL: ftp://ftp.bom.gov.au/anon/gen/fwo/
+        FORECAST_STATE_ID: IDV10753
+        FORECAST_AAC: VIC_PT042
+        LOG_LEVEL: ERROR
+        write_debug: false
