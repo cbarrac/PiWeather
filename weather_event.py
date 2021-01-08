@@ -53,9 +53,9 @@ def BootMessage(msg):
     if config.getboolean('Output', 'ADA_LCD'):
         try:
             AdaLcd.clear()
-            AdaLcd.set_color(0.5, 0.5, 0.5)
+            AdaLcd.color = [128,128,128]
             msg = FormatDisplay(msg, config.getint('Adafruit_LCD', 'LCD_WIDTH'), config.getint('Adafruit_LCD', 'LCD_HEIGHT'))
-            AdaLcd.message(msg)
+            AdaLcd.message = msg
         except (NameError):
             log.debug("LCD not initialised")
         except Exception as e:
@@ -584,23 +584,23 @@ def WriteAdaLcd():
             uv = readings[config.get('Adafruit_LCD', 'UV_CHANNEL')][0]
             if uv < 3.0:
                 # Low
-                AdaLcd.set_color(0.0, 1.0, 0.0)  # rgb(0,255,0)
+                AdaLcd.color = [0, 255, 0]
             elif uv < 6.0:
                 # Moderate
-                AdaLcd.set_color(1.0, 1.0, 0.2)  # rgb(255,255,64)
+                AdaLcd.color = [255,255,64]
             elif uv < 8.0:
                 # High
-                AdaLcd.set_color(1.0, 0.5, 0.2)  # rgb(255,128,64)
+                AdaLcd.color = [255,128,64]
             elif uv < 11.0:
                 # Very High
-                AdaLcd.set_color(1.0, 0.2, 0.2)  # rgb(255,64,64)
+                AdaLcd.color = [255,64,64]
             else:
                 # Extreme
-                AdaLcd.set_color(1.0, 0.2, 1.0)  # rgb(255,64,255)
+                AdaLcd.color = [255,64,255]
         except Exception:
             log.exception("WriteAdaLcd: Error setting backlight")
     try:
-        AdaLcd.message(msg)
+        AdaLcd.message = msg
     except Exception:
         log.exception("WriteAdaLcd: Error writing message")
 
@@ -713,8 +713,11 @@ BootMessage("Outputs:")
 if config.getboolean('Output', 'ADA_LCD'):
     BootMessage("...Adafruit LCD")
     try:
-        import Adafruit_CharLCD
-        AdaLcd = Adafruit_CharLCD.Adafruit_CharLCDPlate()
+        import board
+        import busio
+        import adafruit_character_lcd.character_lcd_rgb_i2c as Adafruit_CharLCD
+        i2c = busio.I2C(board.SCL, board.SDA)
+        AdaLcd = Adafruit_CharLCD.Character_LCD_RGB_I2C(i2c, config.getint('Adafruit_LCD', 'LCD_WIDTH'), config.getint('Adafruit_LCD', 'LCD_HEIGHT'))
     except Exception as e:
         log.error("Loading Adafruit LCD.", e)
 if config.getboolean('Output', 'MQTT_PUBLISH'):
@@ -880,6 +883,7 @@ except (KeyboardInterrupt, SystemExit):
         dstatus.flush()
     if config.getboolean('Output', 'ADA_LCD'):
         AdaLcd.clear()
+        AdaLcd.color = [0, 0, 0]
     if config.getboolean('Output', 'SENSEHAT_DISPLAY'):
         PiSenseHat.clear()
     if config.getboolean('Sensors', 'ENOCEAN') and eoCommunicator.is_alive():

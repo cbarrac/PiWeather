@@ -1,8 +1,10 @@
 Adafruit-Blinka==5.9.2
 Adafruit-BMP==1.5.4
-Adafruit-CharLCD==1.1.1
+adafruit-circuitpython-74hc595==1.2.1
 adafruit-circuitpython-bme280==2.5.1
 adafruit-circuitpython-busdevice==5.0.2
+adafruit-circuitpython-charlcd==3.3.4
+adafruit-circuitpython-mcp230xx==2.4.2
 Adafruit-GPIO==1.0.3
 Adafruit-PlatformDetect==2.24.0
 Adafruit-PureIO==1.1.8
