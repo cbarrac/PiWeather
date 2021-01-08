@@ -504,7 +504,10 @@ def WriteAdaLcd():
         try:
             if AdaScreenNumber == 0:
                 AdaScreenNumber += 1
-                msg = "{0:0.1f}C {1:0.0f}% UV{2:0.1f}\n{3:0.1f}hPa".format(readings[config.get('PYWWS', 'TEMP_IN_CHANNEL')][0], readings[config.get('PYWWS', 'HUM_IN_CHANNEL')][0], readings[config.get('PYWWS', 'UV_CHANNEL')][0], readings[config.get('PYWWS', 'ABS_PRESSURE_CHANNEL')][0])
+                if config.getboolean('Sensors', 'SI1145'):
+                    msg = "{0:0.1f}C {1:0.0f}% UV{2:0.1f}\n{3:0.1f}hPa".format(readings[config.get('PYWWS', 'TEMP_IN_CHANNEL')][0], readings[config.get('PYWWS', 'HUM_IN_CHANNEL')][0], readings[config.get('PYWWS', 'UV_CHANNEL')][0], readings[config.get('PYWWS', 'ABS_PRESSURE_CHANNEL')][0])
+                else:
+                    msg = "T:{0:0.1f}C Hum:{1:0.0f}%\nPress:{2:0.1f}hPa".format(readings[config.get('PYWWS', 'TEMP_IN_CHANNEL')][0], readings[config.get('PYWWS', 'HUM_IN_CHANNEL')][0], readings[config.get('PYWWS', 'ABS_PRESSURE_CHANNEL')][0])
                 msg_success = True
             elif AdaScreenNumber == 1:
                 AdaScreenNumber += 1
