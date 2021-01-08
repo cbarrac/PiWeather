@@ -881,12 +881,11 @@ except (KeyboardInterrupt, SystemExit):
         print("Flushing data")
         ds.flush()
         dstatus.flush()
-    if config.getboolean('Output', 'ADA_LCD'):
-        AdaLcd.clear()
-        AdaLcd.color = [0, 0, 0]
     if config.getboolean('Output', 'SENSEHAT_DISPLAY'):
         PiSenseHat.clear()
     if config.getboolean('Sensors', 'ENOCEAN') and eoCommunicator.is_alive():
         eoCommunicator.stop()
     BootMessage("Goodbye")
+    if config.getboolean('Output', 'ADA_LCD'):
+        AdaLcd.color = [0, 0, 0]
     logging.shutdown()
