@@ -370,10 +370,10 @@ def Sample():
         # !Make sure to read temperature first!
         # !The library sets OverSampling and waits for valid values _only_ in the read_raw_temperature function!
         try:
-            Smoothing(config.get('BME280', 'TEMPERATURE_CHANNEL'), (BmeSensor.read_temperature() + config.getfloat('Calibration', 'BME280_TEMP_IN')))
-            # Note: read_pressure returns Pa, divide by 100 for hectopascals (hPa)
-            Smoothing(config.get('BME280', 'PRESSURE_CHANNEL'), ((BmeSensor.read_pressure()/100.0) + config.getfloat('Calibration', 'ALTITUDE_PRESSURE_OFFSET') + config.getfloat('Calibration', 'BME280_PRESSURE')))
-            Smoothing(config.get('BME280', 'HUMIDITY_CHANNEL'), (BmeSensor.read_humidity() + config.getfloat('Calibration', 'BME280_HUM_IN')))
+            Smoothing(config.get('BME280', 'TEMPERATURE_CHANNEL'), (BmeSensor.temperature + config.getfloat('Calibration', 'BME280_TEMP_IN')))
+            # Note: pressure now reads hectopascals (hPa) directly
+            Smoothing(config.get('BME280', 'PRESSURE_CHANNEL'), (BmeSensor.pressure + config.getfloat('Calibration', 'ALTITUDE_PRESSURE_OFFSET') + config.getfloat('Calibration', 'BME280_PRESSURE')))
+            Smoothing(config.get('BME280', 'HUMIDITY_CHANNEL'), (BmeSensor.humidity + config.getfloat('Calibration', 'BME280_HUM_IN')))
         except Exception:
             log.exception("Error reading BME280: ")
 
@@ -738,8 +738,11 @@ BootMessage("Inputs:")
 if config.getboolean('Sensors', 'BME280'):
     BootMessage("...BME280")
     try:
-        import Adafruit_BME280
-        BmeSensor = Adafruit_BME280.BME280(t_mode=Adafruit_BME280.BME280_OSAMPLE_8, p_mode=Adafruit_BME280.BME280_OSAMPLE_8, h_mode=Adafruit_BME280.BME280_OSAMPLE_8)
+        import board
+        import busio
+        import adafruit_bme280
+        i2c = busio.I2C(board.SCL, board.SDA)
+        BmeSensor = adafruit_bme280.Adafruit_BME280_I2C(i2c)
     except Exception as e:
         log.error("Loading BME280.", e)
 if config.getboolean('Sensors', 'BMP085'):
