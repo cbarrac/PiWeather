@@ -576,25 +576,26 @@ def WriteAdaLcd():
         AdaLcd.clear()
     except Exception:
         log.exception("WriteAdaLcd: Error clearing LCD")
-    try:
-        uv = readings[config.get('Adafruit_LCD', 'UV_CHANNEL')][0]
-        if uv < 3.0:
-            # Low
-            AdaLcd.set_color(0.0, 1.0, 0.0)  # rgb(0,255,0)
-        elif uv < 6.0:
-            # Moderate
-            AdaLcd.set_color(1.0, 1.0, 0.2)  # rgb(255,255,64)
-        elif uv < 8.0:
-            # High
-            AdaLcd.set_color(1.0, 0.5, 0.2)  # rgb(255,128,64)
-        elif uv < 11.0:
-            # Very High
-            AdaLcd.set_color(1.0, 0.2, 0.2)  # rgb(255,64,64)
-        else:
-            # Extreme
-            AdaLcd.set_color(1.0, 0.2, 1.0)  # rgb(255,64,255)
-    except Exception:
-        log.exception("WriteAdaLcd: Error setting backlight")
+    if config.getboolean('Sensors', 'SI1145'):
+        try:
+            uv = readings[config.get('Adafruit_LCD', 'UV_CHANNEL')][0]
+            if uv < 3.0:
+                # Low
+                AdaLcd.set_color(0.0, 1.0, 0.0)  # rgb(0,255,0)
+            elif uv < 6.0:
+                # Moderate
+                AdaLcd.set_color(1.0, 1.0, 0.2)  # rgb(255,255,64)
+            elif uv < 8.0:
+                # High
+                AdaLcd.set_color(1.0, 0.5, 0.2)  # rgb(255,128,64)
+            elif uv < 11.0:
+                # Very High
+                AdaLcd.set_color(1.0, 0.2, 0.2)  # rgb(255,64,64)
+            else:
+                # Extreme
+                AdaLcd.set_color(1.0, 0.2, 1.0)  # rgb(255,64,255)
+        except Exception:
+            log.exception("WriteAdaLcd: Error setting backlight")
     try:
         AdaLcd.message(msg)
     except Exception:
