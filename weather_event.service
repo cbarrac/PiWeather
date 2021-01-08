@@ -1,0 +1,11 @@
+[Unit]
+Description=Weather Sensing
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/PiWeather
+ExecStart=/opt/PiWeather/bin/python3 /opt/PiWeather/weather_event.py
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target
