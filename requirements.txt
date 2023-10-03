@@ -14,7 +14,7 @@ enocean==0.31
 enum-compat==0.0.3
 numpy==1.22.0
 paho-mqtt==1.4.0
-Pillow==9.0.1
+Pillow==10.0.1
 pkg-resources==0.0.0
 pyftdi==0.52.0
 pyserial==3.5
